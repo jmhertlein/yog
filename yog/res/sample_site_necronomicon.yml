@@ -1,0 +1,3 @@
+files:
+  - src: test2.txt
+    dest: /tmp/test2.txt

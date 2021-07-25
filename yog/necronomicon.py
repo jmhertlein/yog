@@ -1,0 +1,91 @@
+import typing as t
+
+import yaml
+
+
+def loads(necronomicon: str) -> 'Necronomicon':
+    return load(yaml.safe_load(necronomicon))
+
+
+def loadfile(path: str) -> 'Necronomicon':
+    with open(path) as nin:
+        return loads(nin.read())
+
+
+def load(parsed_necronomicon) -> 'Necronomicon':
+    if parsed_necronomicon is None:
+        return Necronomicon(False, DockerSection([]), CronSection([]), FileSection([]))
+
+    if 'files' in parsed_necronomicon:
+        fs = FileSection([File(
+            e['src'],
+            e['dest'],
+            e['hupcmd'] if 'hupcmd' in e else None,
+            e['root'] if 'root' in e else False,
+        ) for e in parsed_necronomicon['files']])
+    else:
+        fs = FileSection([])
+
+    if 'docker' in parsed_necronomicon:
+        ds = DockerSection([DockerContainer(
+            e['image'],
+            e['name'],
+            e['fingerprint'],
+            e['volumes'] if 'volumes' in e else {},
+            {str(k): str(v) for k, v in (e['ports'] if 'ports' in e else {}).items()},
+            e['env'] if 'env' in e else {},
+            e['command'] if 'command' in e else None,
+        ) for e in parsed_necronomicon['docker']])
+    else:
+        ds = DockerSection([])
+
+    if 'cron' in parsed_necronomicon:
+        cs = CronSection([CronJob(e['expr'], e['command'], e['user'] if 'user' in e else 'root') for e in parsed_necronomicon['cron']])
+    else:
+        cs = CronSection([])
+
+    needs_tunnel_back = parsed_necronomicon['needs_tunnel_back'] if 'needs_tunnel_back' in parsed_necronomicon else False
+
+    return Necronomicon(needs_tunnel_back, ds, cs, fs)
+
+
+class Necronomicon(t.NamedTuple):
+    needs_tunnel_back: bool
+    docker: 'DockerSection'
+    cron: 'CronSection'
+    files: 'FileSection'
+
+
+class DockerSection(t.NamedTuple):
+    containers: t.List['DockerContainer']
+
+
+class DockerContainer(t.NamedTuple):
+    image: str
+    name: str
+    fingerprint: str
+    volumes: t.Mapping[str, str]
+    ports: t.Mapping[str, str]
+    env: t.Mapping[str, str]
+    command: t.Optional[str]
+
+
+class CronSection(t.NamedTuple):
+    crons: t.List['CronJob']
+
+
+class CronJob(t.NamedTuple):
+    expr: str
+    command: str
+    user: str
+
+
+class FileSection(t.NamedTuple):
+    files: t.List['File']
+
+
+class File(t.NamedTuple):
+    src: str
+    dest: str
+    hupcmd: str
+    root: bool

@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+import re
+from argparse import ArgumentParser
+
+from yog.logging_utils import setup
+from yog.manage import apply_necronomicon
+
+log = setup("yog")
+
+# Yog-Sothoth knows the gate. Yog-Sothoth is the gate. Yog-Sothoth is the key and guardian of the gate.
+# Past, present, future, all are one in Yog-Sothoth. He knows where the Old Ones broke through of old,
+# and where They shall break through again. He knows where They have trod earth's fields, and where They
+# still tread them, and why no one can behold Them as They tread.
+
+
+def main(opts):
+    apply_necronomicon(opts.host, opts.root_dir)
+    
+
+if __name__ == '__main__':
+    args = ArgumentParser()
+    args.add_argument("host")
+    args.add_argument("--root-dir", default="./")
+
+    opts = args.parse_args()
+    log.info(f"Invoked with: {opts}")
+    main(opts)
