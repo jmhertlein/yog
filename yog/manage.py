@@ -78,6 +78,7 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
     log.info(f"Docker: {host}")
     tunnels = []
     for tunnel_def in n.tunnels.tunnels:
+        log.debug(f"Setting up tunnel {tunnel_def}")
         tunnel = ScopedProxiedRemoteSSHTunnel(
             host,
             tunnel_def.target_port,
