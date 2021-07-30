@@ -1,16 +1,13 @@
-import asyncio
 import logging
 import os
 import re
-import shlex
 import subprocess
-from asyncio.subprocess import Process
 from hashlib import sha512
 from random import randrange
 from re import Pattern
 from tempfile import NamedTemporaryFile
 from time import sleep
-from typing import Tuple, List, Optional, Set, IO
+from typing import Tuple, List, Optional, Set
 
 from paramiko import SSHClient, PKey
 
