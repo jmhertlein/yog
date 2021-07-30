@@ -44,13 +44,22 @@ def load(parsed_necronomicon) -> 'Necronomicon':
     else:
         cs = CronSection([])
 
-    needs_tunnel_back = parsed_necronomicon['needs_tunnel_back'] if 'needs_tunnel_back' in parsed_necronomicon else False
+    if 'needs_tunnels' in parsed_necronomicon:
+        tunnels = NeededTunnelsSection([
+            NeededTunnel(
+                tun['host'],
+                int(tun['target_port']),
+                int(tun['local_port']),
+            ) for tun in parsed_necronomicon['needs_tunnels']
+        ])
+    else:
+        tunnels = NeededTunnelsSection([])
 
-    return Necronomicon(needs_tunnel_back, ds, cs, fs)
+    return Necronomicon(tunnels, ds, cs, fs)
 
 
 class Necronomicon(t.NamedTuple):
-    needs_tunnel_back: bool
+    tunnels: 'NeededTunnelsSection'
     docker: 'DockerSection'
     cron: 'CronSection'
     files: 'FileSection'
@@ -89,3 +98,13 @@ class File(t.NamedTuple):
     dest: str
     hupcmd: str
     root: bool
+
+
+class NeededTunnel(t.NamedTuple):
+    host: str
+    target_port: int
+    local_port: int
+
+
+class NeededTunnelsSection(t.NamedTuple):
+    tunnels: t.List[NeededTunnel]

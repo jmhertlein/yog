@@ -19,11 +19,16 @@ class TestNecronomicon(unittest.TestCase):
         self.assertEqual("/var/lib/memes", n.docker.containers[1].volumes['memebox'])
         self.assertEqual("test.txt", n.files.files[0].src)
 
+        n = load(yaml.safe_load(get_resource("sample_needs_tunnel_back.yml")))
+        self.assertEqual("test.josh.cafe", n.tunnels.tunnels[0].host)
+        self.assertEqual(5000, n.tunnels.tunnels[0].target_port)
+        self.assertEqual(5000, n.tunnels.tunnels[0].local_port)
+
     def test_load_necronomicons(self):
         root_dir = mkdtemp()
         try:
-            host_file_path = "cafe/josh/clust/ofn/myhost.yml"
-            clust_file_path = "cafe/josh/clust.yml"
+            host_file_path = "domains/cafe/josh/clust/ofn/myhost.yml"
+            clust_file_path = "domains/cafe/josh/clust.yml"
             hostname = "myhost.ofn.clust.josh.cafe"
 
             makedirs(dirname(join(root_dir, host_file_path)), exist_ok=True)

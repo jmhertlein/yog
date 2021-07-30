@@ -76,14 +76,19 @@ def apply_cron_section(host: str, n: Necronomicon, ssh: SSHClient):
 
 def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
     log.info(f"Docker: {host}")
-    if n.needs_tunnel_back:
-        tunnel_back = ScopedProxiedRemoteSSHTunnel(host, 5000, "dockerrepo.hert", "remote", force_random_port=5000)
-    else:
-        tunnel_back = None
+    tunnels = []
+    for tunnel_def in n.tunnels.tunnels:
+        tunnel = ScopedProxiedRemoteSSHTunnel(
+            host,
+            tunnel_def.target_port,
+            tunnel_def.host,
+            "remote",
+            force_random_port=tunnel_def.local_port)
+        tunnels.append(tunnel)
 
     try:
-        if tunnel_back is not None:
-            tunnel_back.connect()
+        for tun in tunnels:
+            tun.connect()
         with ScopedProxiedRemoteSSHTunnel(host, 4243) as tport:
             log.debug("Connecting docker client....")
             client = docker.DockerClient(base_url=f"tcp://localhost:{tport}", version="auto")
@@ -136,8 +141,11 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
                                           detach=True,
                                           command=desired_container.command)
     finally:
-        if tunnel_back is not None:
-            tunnel_back.disconnect()
+        for tun in tunnels:
+            try:
+                tun.disconnect()
+            except RuntimeError as e:
+                log.warning("Error while disconnecting tunnel", exc_info=e)
 
 
 def apply_files_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):

@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 
 def setup(app: str):
-    ret = logging.getLogger(f"hert")
+    ret = logging.getLogger(f"yog")
     ret.setLevel(logging.DEBUG)
 
     if getuser() == "root":

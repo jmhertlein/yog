@@ -1,0 +1,25 @@
+needs_tunnels:
+  - host: test.josh.cafe
+    target_port: 5000
+    local_port: 5000
+
+docker:
+  - image: mail-relay-postfix
+    fingerprint: 534w6354r53
+    name: mrp
+  - image: mail-relay-jumpbox
+    fingerprint: 23r2w43r43f
+    name: mrj
+    volumes:
+      memebox: /var/lib/memes
+    ports:
+      25: 25
+
+cron:
+  - expr: 0 * * * *
+    command: echo hello world
+    user: root
+
+files:
+  - src: test.txt
+    dest: /tmp/test.txt
