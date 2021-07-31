@@ -12,14 +12,14 @@ from os import makedirs
 
 class TestNecronomicon(unittest.TestCase):
     def test(self):
-        n = load(yaml.safe_load(get_resource("sample_necronomicon.yml")))
+        n = load("test1", yaml.safe_load(get_resource("sample_necronomicon.yml")))
         self.assertEqual("mail-relay-postfix", n.docker.containers[0].image)
         self.assertEqual(2, len(n.docker.containers))
         self.assertEqual(1, len(n.cron.crons))
         self.assertEqual("/var/lib/memes", n.docker.containers[1].volumes['memebox'])
         self.assertEqual("test.txt", n.files.files[0].src)
 
-        n = load(yaml.safe_load(get_resource("sample_needs_tunnel_back.yml")))
+        n = load("test2", yaml.safe_load(get_resource("sample_needs_tunnel_back.yml")))
         self.assertEqual("test.josh.cafe", n.tunnels.tunnels[0].host)
         self.assertEqual(5000, n.tunnels.tunnels[0].target_port)
         self.assertEqual(5000, n.tunnels.tunnels[0].local_port)

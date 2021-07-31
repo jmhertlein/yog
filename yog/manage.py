@@ -1,5 +1,5 @@
 import logging
-from os.path import dirname, join, isdir, isfile
+from os.path import dirname, join, isdir, isfile, basename
 
 import docker
 from docker.types import LogConfig
@@ -44,7 +44,7 @@ def load_necronomicons_for_host(host: str, root_dir):
             necronomicon_paths.append(join(cur, f"{part}.yml"))
         cur = join(cur, part)
 
-    return [necronomicon.loadfile(p) for p in necronomicon_paths]
+    return [necronomicon.loadfile(basename(p), p) for p in necronomicon_paths]
 
 
 def apply_necronomicon_for_host(host: str, ssh: SSHClient, root_dir):
@@ -75,7 +75,7 @@ def apply_cron_section(host: str, n: Necronomicon, ssh: SSHClient):
 
 
 def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
-    log.info(f"Docker: {host}")
+    log.info(f"Docker: {n.ident}")
     tunnels = []
     for tunnel_def in n.tunnels.tunnels:
         log.debug(f"Setting up tunnel {tunnel_def}")
@@ -150,7 +150,7 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
 
 
 def apply_files_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
-    log.info(f"Files: {host}")
+    log.info(f"Files: {n.ident}")
     hupcmds = set()
     for f in n.files.files:
         with open(join(root_dir, "files", f.src)) as fin:

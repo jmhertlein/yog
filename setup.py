@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='yog',
-      version='1.0.0',
+      version='1.0.1',
       description='The Gate and Key',
       url='https://github.com/jmhertlein/yog',
       author='Josh Hertlein',

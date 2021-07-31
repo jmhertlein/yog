@@ -3,18 +3,18 @@ import typing as t
 import yaml
 
 
-def loads(necronomicon: str) -> 'Necronomicon':
-    return load(yaml.safe_load(necronomicon))
+def loads(ident: str, necronomicon: str) -> 'Necronomicon':
+    return load(ident, yaml.safe_load(necronomicon))
 
 
-def loadfile(path: str) -> 'Necronomicon':
+def loadfile(ident: str, path: str) -> 'Necronomicon':
     with open(path) as nin:
-        return loads(nin.read())
+        return loads(ident, nin.read())
 
 
-def load(parsed_necronomicon) -> 'Necronomicon':
+def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
     if parsed_necronomicon is None:
-        return Necronomicon(False, DockerSection([]), CronSection([]), FileSection([]))
+        return Necronomicon(ident, NeededTunnelsSection([]), DockerSection([]), CronSection([]), FileSection([]))
 
     if 'files' in parsed_necronomicon:
         fs = FileSection([File(
@@ -55,10 +55,11 @@ def load(parsed_necronomicon) -> 'Necronomicon':
     else:
         tunnels = NeededTunnelsSection([])
 
-    return Necronomicon(tunnels, ds, cs, fs)
+    return Necronomicon(ident, tunnels, ds, cs, fs)
 
 
 class Necronomicon(t.NamedTuple):
+    ident: str
     tunnels: 'NeededTunnelsSection'
     docker: 'DockerSection'
     cron: 'CronSection'
