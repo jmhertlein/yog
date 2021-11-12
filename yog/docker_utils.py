@@ -95,6 +95,18 @@ def my_format_to_run_ports_arg_format(port_section: t.Mapping[str, str]):
     return ret
 
 
+def build_volumes_dict(volumes_section: t.Mapping[str, str]):
+    ret = {}
+    for k, v in volumes_section.items():
+        mode_data = re.search(r"\+(?P<mode>r[ow])$", v)
+        if mode_data:
+            ret[k] = {"bind": v[:-3], "mode": mode_data.group("mode").strip()}
+        else:
+            ret[k] = {"bind": v, "mode": "rw"}
+
+    return ret
+
+
 def my_format_to_ports_attr_format(port_section: t.Mapping[str, str]):
     """Converts my YAML format, which is the same as the docker CLI -p format, to what the docker API expects
     MY format is:
@@ -157,8 +169,8 @@ def _envs_match(desired: DockerContainer, found: Container, desired_env):
 
 def _volumes_match(desired: DockerContainer, found: Container):
     found_mounts_list: t.List[t.Dict[str, t.Any]] = found.attrs['Mounts']
-    found_mounts_volume = {m['Name']: m['Destination'] for m in found_mounts_list if m['Type'] == 'volume'}
-    found_mounts_bind = {m['Source']: m['Destination'] for m in found_mounts_list if m['Type'] == 'bind'}
+    found_mounts_volume = {m['Name']: {"bind": m['Destination'], "mode": m["Mode"]} for m in found_mounts_list if m['Type'] == 'volume'}
+    found_mounts_bind = {m['Source']: {"bind": m['Destination'], "mode": m["Mode"]} for m in found_mounts_list if m['Type'] == 'bind'}
     found_mounts = {}
     for k, v in found_mounts_volume.items():
         if k in desired.volumes:
@@ -168,7 +180,7 @@ def _volumes_match(desired: DockerContainer, found: Container):
         if k in desired.volumes:
             found_mounts[k] = v
 
-    return found_mounts == desired.volumes
+    return found_mounts == build_volumes_dict(desired.volumes)
 
 
 def _commands_match(desired: DockerContainer, found: Container):

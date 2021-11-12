@@ -7,6 +7,7 @@ docker:
     name: mrj
     volumes:
       memebox: /var/lib/memes
+      /tmp/test: /tmp/test+ro
     ports:
       25: 25
 

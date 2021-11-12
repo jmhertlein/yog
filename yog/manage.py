@@ -6,7 +6,7 @@ from docker.types import LogConfig
 from paramiko import SSHClient, SSHException
 from paramiko.ssh_exception import NoValidConnectionsError
 
-from yog.docker_utils import is_acceptable_container, my_format_to_run_ports_arg_format
+from yog.docker_utils import is_acceptable_container, my_format_to_run_ports_arg_format, build_volumes_dict
 from yog.ssh_utils import check_call, check_stdout, ScopedProxiedRemoteSSHTunnel, compare_local_and_remote
 from yog import necronomicon
 from yog.necronomicon import Necronomicon
@@ -131,11 +131,11 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
                 else:
                     log.info(f"RUN: {desired_container.image}@{desired_container.fingerprint}")
                     ports_dict = my_format_to_run_ports_arg_format(desired_container.ports)
+                    volumes_dict = build_volumes_dict(desired_container.volumes)
                     client.containers.run(f"{desired_container.image}@{desired_container.fingerprint}",
                                           name=desired_container.name,
                                           restart_policy={'Name': "always"},
-                                          volumes={k: {"bind": v, "mode": "rw"} for k, v in
-                                                   desired_container.volumes.items()},
+                                          volumes=volumes_dict,
                                           ports=ports_dict,
                                           log_config=LogConfig(type=LogConfig.types.JOURNALD),
                                           environment=desired_container_env,

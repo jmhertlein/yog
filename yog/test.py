@@ -2,6 +2,7 @@ import unittest
 import yaml
 
 from res import get_resource
+from yog.docker_utils import build_volumes_dict
 from yog.necronomicon import load
 from yog.manage import load_necronomicons_for_host
 from tempfile import mkdtemp
@@ -44,6 +45,13 @@ class TestNecronomicon(unittest.TestCase):
             self.assertEqual("test.txt", necronomicons[1].files.files[0].src)
         finally:
             rmtree(root_dir)
+
+    def test_build_volumes_dist(self):
+        n = load("test1", yaml.safe_load(get_resource("sample_necronomicon.yml")))
+        self.assertEqual("/tmp/test+ro", n.docker.containers[1].volumes['/tmp/test'])
+        d = build_volumes_dict(n.docker.containers[1].volumes)
+        self.assertEqual("ro", d["/tmp/test"]["mode"])
+        self.assertEqual("rw", d["memebox"]["mode"])
 
 
 if __name__ == "__main__":
