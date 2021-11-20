@@ -6,10 +6,10 @@ from docker.types import LogConfig
 from paramiko import SSHClient, SSHException
 from paramiko.ssh_exception import NoValidConnectionsError
 
-from yog.docker_utils import is_acceptable_container, my_format_to_run_ports_arg_format, build_volumes_dict
+from yog.host.manage_docker_utils import is_acceptable_container, my_format_to_run_ports_arg_format, build_volumes_dict
 from yog.ssh_utils import check_call, check_stdout, ScopedProxiedRemoteSSHTunnel, compare_local_and_remote
-from yog import necronomicon
-from yog.necronomicon import Necronomicon
+from yog.host import necronomicon
+from yog.host.necronomicon import Necronomicon
 
 log = logging.getLogger(__name__)
 

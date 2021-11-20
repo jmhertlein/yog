@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-from yog.host.main import main
 from yog.logging_utils import setup
+from yog.repo.main import main
 
-log = setup("yog")
 
 # Yog-Sothoth knows the gate. Yog-Sothoth is the gate. Yog-Sothoth is the key and guardian of the gate.
 # Past, present, future, all are one in Yog-Sothoth. He knows where the Old Ones broke through of old,

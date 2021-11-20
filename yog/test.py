@@ -2,9 +2,9 @@ import unittest
 import yaml
 
 from res import get_resource
-from yog.docker_utils import build_volumes_dict
-from yog.necronomicon import load
-from yog.manage import load_necronomicons_for_host
+from yog.host.manage_docker_utils import build_volumes_dict
+from yog.host.necronomicon import load
+from yog.host.manage import load_necronomicons_for_host
 from tempfile import mkdtemp
 from shutil import rmtree
 from os.path import join, dirname

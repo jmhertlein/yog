@@ -165,7 +165,7 @@ class ScopedProxiedRemoteSSHTunnel:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.disconnect()
 
-    def connect(self):
+    def connect(self) -> int:
         if self.forward_type == "local":
             forward_flag = "-L"
             forward_expr = f"{{}}:localhost:{self.port_forwarded}"

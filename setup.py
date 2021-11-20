@@ -16,4 +16,5 @@ setup(name='yog',
       ],
       scripts=[
             'bin/yog',
+            'bin/yog-repo'
       ])
