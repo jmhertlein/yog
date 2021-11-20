@@ -5,7 +5,8 @@ set -e
 
 rm -r ./dist/ || true
 rm -r ./build/ || true
-pipenv run python3 setup.py sdist bdist_wheel
+#pipenv run python3 setup.py sdist bdist_wheel
+poetry build
 pipenv run twine upload dist/*
 
 rm -r ./build/ || true
