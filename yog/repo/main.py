@@ -74,9 +74,12 @@ def push(target: str, check_unclean_work_tree: bool):
         client: docker.DockerClient = docker.DockerClient(base_url='unix://var/run/docker.sock')
         log.info(f"Dockerfile: {push_target.dockerfile_path}")
 
+        labels: t.Dict[str, str] = dict()
+        labels["cafe.josh.yog.git-head-sha"] = revision
+
         log.info("Building...")
         image: Image
-        image, logs = client.images.build(path=".", dockerfile=push_target.dockerfile_path, rm=True, tag=tag)
+        image, logs = client.images.build(path=".", dockerfile=push_target.dockerfile_path, rm=True, tag=tag, labels=labels)
 
         log.info("Tagging...")
         if push_target.tags:
