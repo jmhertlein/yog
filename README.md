@@ -1,4 +1,4 @@
-## Yog
+# Yog
 
 An opinionated docker-and-ssh-centric declarative system management tool.
 
