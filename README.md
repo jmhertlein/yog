@@ -2,7 +2,7 @@
 
 An opinionated docker-and-ssh-centric declarative system management tool.
 
-`pip install yog`
+`sudo pip install yog`
 
 Some features:
 * Like puppet or ansible but a lot smaller and focused on docker.
