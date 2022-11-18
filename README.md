@@ -9,5 +9,5 @@ Some features:
 
 Command summary:
 
-* `yog`: Applies configurations to hosts. e.g. `yog myhost.mytld` applies the config from `./domains/mytld.myhost.yml`.
-* `yog-repo`: Manages a docker repository. `yog-repo push` uses the contents of `./Yogfile` to build an image and push it to the configured registry with the configured name and tag.
+* `yog`: Applies configurations to hosts. e.g. `yog myhost.mytld` applies the config from `./domains/mytld/myhost.yml`.
+* `yog-repo`: Manages a docker repository. `yog-repo push` uses the contents of `./yog-repo.conf` to build an image and push it to the configured registry with the configured name and tag.
