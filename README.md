@@ -2,6 +2,8 @@
 
 An opinionated docker-and-ssh-centric declarative system management tool.
 
+`pip install yog`
+
 Some features:
 * Like puppet or ansible but a lot smaller and focused on docker.
 * "agentless" in the same sense that ansible is, in that it (ab)uses ssh to do lots of its functionality.
