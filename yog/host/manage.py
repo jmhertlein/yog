@@ -70,12 +70,15 @@ def apply_cron_section(host: str, n: Necronomicon, ssh: SSHClient):
     cronfile_body = "\n".join(cronfile_lines + [""])
     ok, expected, found = compare_local_and_remote(bytes(cronfile_body, "utf-8"), "/etc/cron.d/yog.cron", ssh)
     if not ok:
+        log.info(f"[{host}][cron]: stale")
         log.info(f"Writing /etc/cron.d/yog.cron version {expected[:10]}")
         check_call(ssh, "sudo bash -c 'cat - > /etc/cron.d/yog.cron'", send_stdin=cronfile_body)
+    else:
+        log.info(f"[{host}][cron]: ok")
 
 
 def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
-    log.info(f"Docker: {n.ident}")
+    log.debug(f"Docker: {n.ident}")
     tunnels = []
     for tunnel_def in n.tunnels.tunnels:
         log.debug(f"Setting up tunnel {tunnel_def}")
@@ -91,7 +94,7 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
         for tun in tunnels:
             tun.connect()
         with ScopedProxiedRemoteSSHTunnel(host, 4243) as tport:
-            log.debug("Connecting docker client....")
+            log.debug(f"Connecting docker client.... tcp://localhost:{tport}")
             client = docker.DockerClient(base_url=f"tcp://localhost:{tport}", version="auto")
             log.debug("Docker connected.")
 
@@ -119,17 +122,19 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
                     log.debug(f"Existing container {c.id} is {c.status}")
                     if is_acceptable_container(c, img, desired_container, desired_container_env):
                         log.debug(f"{c.id} is image {c.image.id} which matches our target.")
+                        log.info(f"[{host}][docker]: OK {desired_container.name}@{desired_container.fingerprint}")
                         matches.append(c)
                     else:
                         if c.status in ["running", "restarting"]:
-                            log.info(f"STOP {c.name}:{c.id}")
+                            log.debug(f"STOP {c.name}:{c.id}")
                             c.stop()
-                        log.info(f"RM: {c.name}:{c.id}")
+                        log.debug(f"RM: {c.name}:{c.id}")
                         c.remove()
                 if len(matches) > 0:
                     log.debug("Existing container matches our desired state. No need to kill it.")
                 else:
-                    log.info(f"RUN: {desired_container.image}@{desired_container.fingerprint}")
+                    log.debug(f"RUN: {desired_container.image}@{desired_container.fingerprint}")
+                    log.info(f"[{host}][docker]: stale {desired_container.name}")
                     ports_dict = my_format_to_run_ports_arg_format(desired_container.ports)
                     volumes_dict = build_volumes_dict(desired_container.volumes)
                     client.containers.run(f"{desired_container.image}@{desired_container.fingerprint}",
@@ -150,16 +155,16 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
 
 
 def apply_files_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
-    log.info(f"Files: {n.ident}")
+    log.debug(f"Files: {n.ident}")
     hupcmds = set()
     for f in n.files.files:
         with open(join(root_dir, "files", f.src)) as fin:
             content = fin.read()
         ok, _, _ = compare_local_and_remote(content.encode("utf-8"), f.dest, ssh, f.root)
         if ok:
-            log.debug(f"{f.src} is up-to-date.")
+            log.info(f"[{host}][files]: OK [{f.src}]")
         else:
-            log.info(f"[{host}]: put {f.src} -> {f.dest}")
+            log.info(f"[{host}][files]: stale {f.src} -> {f.dest}")
             if f.hupcmd:
                 hupcmds.add(f.hupcmd)
 
@@ -171,5 +176,5 @@ def apply_files_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             check_call(ssh, f"{cmd_prefix}mkdir -p \"{dirname(f.dest)}\"")
             check_call(ssh, f"{cmd_prefix}bash -c 'cat - > \"{f.dest}\"'", send_stdin=content)
     for c in hupcmds:
-        log.info(f"HUPCMD: {c}")
+        log.info(f"[{host}][files][hup]: {c}")
         check_call(ssh, c)
