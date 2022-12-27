@@ -169,4 +169,5 @@ The key is the host addr/port, and the value is the dest container port. Example
 ## Footnotes
 
 [1] This is one of those things where I feel like you probably shouldn't manage root certs like this but I have yet to regret it? It's not a cryptographic secret, so.
+
 [2] Also something that people say you probably shouldn't do but I've yet to regret. If your user is in the docker group it's basically root anyway from a threat modeling perspective.
