@@ -18,7 +18,7 @@ Command summary:
 
 Example run:
 
-[video of usage](https://user-images.githubusercontent.com/1287152/209723383-80477df9-af1c-403e-9cea-87f94219231a.webm)
+[usage.webm](https://user-images.githubusercontent.com/1287152/209723654-e78b5283-60b5-4894-b5a1-3d2d71bfcc45.webm)
 
 
 ## Setup
