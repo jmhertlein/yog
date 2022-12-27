@@ -1,0 +1,21 @@
+files:
+  - src: hello_world.html
+    dest: /srv/hello_world/hello_world.html
+    root: yes
+  - src: helloworld-nginx.conf
+    dest: /etc/nginx/conf.d/helloworld.conf
+    root: yes
+    hupcmd: sudo systemctl restart nginx
+
+
+docker:
+   - image: registry
+    name: my-registry
+    fingerprint: sha256:8be26f81ffea54106bae012c6f349df70f4d5e7e2ec01b143c46e2c03b9e551d
+    volumes:
+      images: /var/lib/registry
+    ports:
+      5000: 5000
+    env:
+      REGISTRY_STORAGE_DELETE_ENABLED: true
+

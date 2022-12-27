@@ -12,5 +12,5 @@ def main():
     args.add_argument("--root-dir", default="./")
 
     opts = args.parse_args()
-    log.info(f"Invoked with: {opts}")
+    log.debug(f"Invoked with: {opts}")
     apply_necronomicon(opts.host, opts.root_dir)

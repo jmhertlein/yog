@@ -121,7 +121,7 @@ def main():
     prune_parser = subparsers.add_parser("prune")
 
     opts = args.parse_args()
-    log.info(f"Invoked with: {opts}")
+    log.debug(f"Invoked with: {opts}")
 
     if opts.subcommand == "push":
         if opts.workdir:

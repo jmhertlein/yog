@@ -1,0 +1,4 @@
+files:
+  - src: example.txt
+    dest: /tmp/example.txt
+    root: yes
