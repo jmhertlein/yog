@@ -16,11 +16,22 @@ Command summary:
 * `yog`: Applies configurations to hosts. e.g. `yog myhost.mytld` applies the config from `./domains/mytld/myhost.yml`.
 * `yog-repo`: Manages a docker repository. `yog-repo push` uses the contents of `./yog-repo.conf` to build an image and push it to the configured registry with the configured name and tag.
 
+Example run:
+
+```text
+$ yog myhost.example.com
+[2022-12-26 11:01:52,514] [INFO]: [myhost.example.com]
+[2022-12-26 11:01:59,121] [INFO]: [myhost.example.com][files]: OK [hello_world.html]
+[2022-12-26 11:01:59,274] [INFO]: [myhost.example.com][files]: OK [helloworld-nginx.conf]
+[2022-12-26 11:02:07,117] [INFO]: [myhost.example.com][docker]: OK registry@sha256:8be26f81ffea54106bae012c6f349df70f4d5e7e2ec01b143c46e2c03b9e551d
+```
+
 ## Setup
 
 1. Configure docker to listen on localhost's port 4243 (which is the default). See below.
 2. Use `ssh-copy-id` to copy your ssh key to all the servers you wish to manage. You can look into ssh certificates if you want a more general ssh PKI solution.
 3. Configure the target system to allow you to use sudo without a password. [2]
+4. That's it. You now serve the nameless mist. Do you hear whippoorwills?
 
 ### Docker port listening setup (step 1)
 
@@ -171,3 +182,8 @@ The key is the host addr/port, and the value is the dest container port. Example
 [1] This is one of those things where I feel like you probably shouldn't manage root certs like this but I have yet to regret it? It's not a cryptographic secret, so.
 
 [2] Also something that people say you probably shouldn't do but I've yet to regret. If your user is in the docker group it's basically root anyway from a threat modeling perspective.
+
+
+## `yog-repo`
+
+Yog also includes a tool for pushing images to your local docker registry. I haven't documented it yet, apologies. 
