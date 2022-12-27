@@ -16,6 +16,37 @@ Command summary:
 * `yog`: Applies configurations to hosts. e.g. `yog myhost.mytld` applies the config from `./domains/mytld/myhost.yml`.
 * `yog-repo`: Manages a docker repository. `yog-repo push` uses the contents of `./yog-repo.conf` to build an image and push it to the configured registry with the configured name and tag.
 
+## Setup
+
+1. Configure docker to listen on localhost's port 4243 (which is the default). See below.
+2. Use `ssh-copy-id` to copy your ssh key to all the servers you wish to manage. You can look into ssh certificates if you want a more general ssh PKI solution.
+3. Configure the target system to allow you to use sudo without a password. [2]
+
+### Docker port listening setup (step 1)
+
+```bash
+ssh myhost
+sudo systemctl edit docker
+```
+
+And add `-H tcp://127.0.0.1:4243` to the command. So for me, that file looks like:
+
+```text
+[Service]
+ExecStart=
+ExecStart=/usr/bin/dockerd -H fd:// -H tcp://127.0.0.1:4243
+```
+
+Yog will apply files before docker containers, so you might also want to add a yog file entry like so:
+
+```yaml
+files:
+  - src: docker-override.conf
+    dest: /etc/systemd/system/docker.service.d/override.conf
+    root: yes
+    hupcmd: sudo systemctl restart docker
+```
+
 ## Usage
 
 Yog uses YML files that it calls "necronomicons" for configuration of hosts. It's organized hierarchically so
@@ -102,7 +133,6 @@ Attributes:
 * `root`: whether to `sudo` to root for the file put. This mainly picks who owns the file + can access files, but this might have other useful properties for your use case. If set to `no`, the put operation is run as your ssh user. 
 * `hupcmd`: a command to run after the file is placed. A common thing in ye olde days was to send SIGHUP to a process which would handle it by reloading the config. Commonly nowadays you might be using `hupcmd: sudo systemctl reload nginx`
 
-[1] This is one of those things where I feel like you probably shouldn't manage root certs like this but I have yet to regret it? It's not a cryptographic secret, so.
 
 #### Docker containers
 
@@ -135,3 +165,8 @@ The key is the host addr/port, and the value is the dest container port. Example
 33200: 33200
 8080: 3000 # host port 8080 maps to container port 3000
 ```
+
+## Footnotes
+
+[1] This is one of those things where I feel like you probably shouldn't manage root certs like this but I have yet to regret it? It's not a cryptographic secret, so.
+[2] Also something that people say you probably shouldn't do but I've yet to regret. If your user is in the docker group it's basically root anyway from a threat modeling perspective.
