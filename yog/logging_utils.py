@@ -26,7 +26,7 @@ def setup(app: str):
 
     stdout = logging.StreamHandler(sys.stdout)
     stdout.setLevel(logging.INFO)
-    stdout.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s]: %(message)s"))
+    stdout.setFormatter(logging.Formatter("%(message)s"))
     ret.addHandler(stdout)
 
     ret.debug("Logging configured.")
