@@ -18,13 +18,8 @@ Command summary:
 
 Example run:
 
-```text
-$ yog myhost.example.com
-[2022-12-26 11:01:52,514] [INFO]: [myhost.example.com]
-[2022-12-26 11:01:59,121] [INFO]: [myhost.example.com][files]: OK [hello_world.html]
-[2022-12-26 11:01:59,274] [INFO]: [myhost.example.com][files]: OK [helloworld-nginx.conf]
-[2022-12-26 11:02:07,117] [INFO]: [myhost.example.com][docker]: OK registry@sha256:8be26f81ffea54106bae012c6f349df70f4d5e7e2ec01b143c46e2c03b9e551d
-```
+[video of usage](https://user-images.githubusercontent.com/1287152/209723383-80477df9-af1c-403e-9cea-87f94219231a.webm)
+
 
 ## Setup
 
