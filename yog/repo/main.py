@@ -37,10 +37,20 @@ class PushTarget:
         return bool(self.registry_url)
 
 
-def push(target: str, check_unclean_work_tree: bool):
+def _load_targets() -> t.Dict[str, PushTarget]:
     with open("./yog-repo.conf", "r") as fin:
         obj = yaml.full_load(fin)
     targets = {target_name: PushTarget(**target_dict) for target_name, target_dict in obj.items()}
+    return targets
+
+def ls():
+    log.info("Available targets:")
+    target: PushTarget
+    for tname, target in _load_targets().items():
+        log.info(f"{tname}: {target.registry_url}/{target.repository}")
+
+def push(target: str, check_unclean_work_tree: bool):
+    targets = _load_targets()
 
     push_target: PushTarget = targets[target]
 
@@ -112,22 +122,28 @@ def main():
     setup("yog")
     args = ArgumentParser()
 
+    args.add_argument("--workdir", default=None)
+
     subparsers = args.add_subparsers(help="Subcommand arguments.", dest="subcommand")
     push_parser = subparsers.add_parser("push")
     push_parser.add_argument("target")
-    push_parser.add_argument("--workdir", default=None)
     push_parser.add_argument("--no-git-check", action="store_true")
+
+    list_parser = subparsers.add_parser("ls")
 
     prune_parser = subparsers.add_parser("prune")
 
     opts = args.parse_args()
     log.debug(f"Invoked with: {opts}")
 
+    if opts.workdir:
+        log.info(f"chdir: {opts.workdir}")
+        os.chdir(opts.workdir)
+
     if opts.subcommand == "push":
-        if opts.workdir:
-            log.info(f"chdir: {opts.workdir}")
-            os.chdir(opts.workdir)
         push(opts.target, not opts.no_git_check)
+    elif opts.subcommand == "ls":
+        ls()
     else:
         log.error(f"Invalid command: {opts.subcommand}")
 
