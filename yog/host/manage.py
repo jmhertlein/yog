@@ -122,7 +122,7 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
                     log.debug(f"Existing container {c.id} is {c.status}")
                     if is_acceptable_container(c, img, desired_container, desired_container_env):
                         log.debug(f"{c.id} is image {c.image.id} which matches our target.")
-                        log.info(f"[{host}][docker]: OK {desired_container.name}@{desired_container.fingerprint}")
+                        log.info(f"[{host}][docker]: OK {desired_container.name}@{desired_container.fingerprint[7:13]}")
                         matches.append(c)
                     else:
                         if c.status in ["running", "restarting"]:
@@ -145,7 +145,10 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
                                           log_config=LogConfig(type=LogConfig.types.JOURNALD),
                                           environment=desired_container_env,
                                           detach=True,
-                                          command=desired_container.command)
+                                          command=desired_container.command,
+                                          cap_add=desired_container.capabilities,
+                                          sysctls=desired_container.sysctls,
+                                          )
     finally:
         for tun in tunnels:
             try:

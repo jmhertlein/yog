@@ -127,12 +127,31 @@ def _commands_match(desired: DockerContainer, found: Container):
         return found.image.attrs['Config']['Cmd'] == found.attrs["Config"]["Cmd"]
 
 
+def _capabilities_match(desired: DockerContainer, c: Container):
+    theirs = c.attrs['HostConfig']['CapAdd']
+    if theirs is None:
+        theirs = []
+    ours = desired.capabilities
+    return ours == theirs
+
+
+def _sysctls_match(desired: DockerContainer, c: Container):
+    if 'Sysctls' in c.attrs['HostConfig']:
+        theirs = c.attrs['HostConfig']['Sysctls']
+    else:
+        theirs = {}
+    ours = desired.sysctls
+    return ours == theirs
+
+
 def is_acceptable_container(c: Container, img_by_digest: Image, desired: DockerContainer, desired_env):
     return c.image.id == img_by_digest.id and \
            c.status in ["running"] and \
            _ports_match(desired.ports, c.ports) and \
            _envs_match(desired, c, desired_env) and \
            _volumes_match(desired, c) and \
-           _commands_match(desired, c)
+           _commands_match(desired, c) and \
+           _capabilities_match(desired, c) and \
+           _sysctls_match(desired, c)
 
 

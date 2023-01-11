@@ -35,6 +35,8 @@ def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
             {str(k): str(v) for k, v in (e['ports'] if 'ports' in e else {}).items()},
             e['env'] if 'env' in e else {},
             e['command'] if 'command' in e else None,
+            e['capabilities'] if 'capabilities' in e else [],
+            {str(k): str(v) for k, v in e['sysctls'].items()} if 'sysctls' in e else {},
         ) for e in parsed_necronomicon['docker']])
     else:
         ds = DockerSection([])
@@ -78,6 +80,8 @@ class DockerContainer(t.NamedTuple):
     ports: t.Mapping[str, str]
     env: t.Mapping[str, str]
     command: t.Optional[str]
+    capabilities: t.List[str]
+    sysctls: t.Mapping[str, str]
 
 
 class CronSection(t.NamedTuple):
