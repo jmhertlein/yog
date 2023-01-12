@@ -39,7 +39,7 @@ def build_volumes_dict(volumes_section: t.Mapping[str, str]):
         if mode_data:
             ret[k] = {"bind": v[:-3], "mode": mode_data.group("mode").strip()}
         else:
-            ret[k] = {"bind": v, "mode": "rw"}
+            ret[k] = {"bind": v[:-1] if v.endswith("/") else v, "mode": "rw"}
 
     return ret
 
@@ -117,7 +117,9 @@ def _volumes_match(desired: DockerContainer, found: Container):
         if k in desired.volumes:
             found_mounts[k] = v
 
-    return found_mounts == build_volumes_dict(desired.volumes)
+    our_mounts = build_volumes_dict(desired.volumes)
+
+    return found_mounts == our_mounts
 
 
 def _commands_match(desired: DockerContainer, found: Container):
@@ -145,13 +147,14 @@ def _sysctls_match(desired: DockerContainer, c: Container):
 
 
 def is_acceptable_container(c: Container, img_by_digest: Image, desired: DockerContainer, desired_env):
-    return c.image.id == img_by_digest.id and \
-           c.status in ["running"] and \
-           _ports_match(desired.ports, c.ports) and \
-           _envs_match(desired, c, desired_env) and \
-           _volumes_match(desired, c) and \
-           _commands_match(desired, c) and \
-           _capabilities_match(desired, c) and \
-           _sysctls_match(desired, c)
+    digest = c.image.id == img_by_digest.id
+    status = c.status in ["running"]
+    ports = _ports_match(desired.ports, c.ports)
+    envs = _envs_match(desired, c, desired_env)
+    volumes = _volumes_match(desired, c)
+    commands = _commands_match(desired, c)
+    capabilities = _capabilities_match(desired, c)
+    sysctls = _sysctls_match(desired, c)
+    return all([digest, status, ports, envs, volumes, commands, capabilities, sysctls])
 
 
