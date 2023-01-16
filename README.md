@@ -11,6 +11,9 @@ Features:
 * agentless - runs entirely on top of ssh
 * entirely defers auth(z/n) to ssh and the remote system's user permissions
 
+Non-features:
+* No intentional ipv6 support. I don't have anything against IPv6, but my ISP doesn't give me a v6 address and as such I don't run ipv6 on my lan. So since I can't test it at all, I just kind of disregard it, especially where it lets me make the ipv4 UX better.
+
 Command summary:
 
 * `yog`: Applies configurations to hosts. e.g. `yog myhost.mytld` applies the config from `./domains/mytld/myhost.yml`.
@@ -119,7 +122,8 @@ docker:
     volumes:
       images: /var/lib/registry
     ports:
-      5000: 5000
+      - container: 5000
+        host: [5000]
     env:
       REGISTRY_STORAGE_DELETE_ENABLED: true
 ```
@@ -161,15 +165,26 @@ For bind mounts, the key is the host path and the value is the container path.
 
 ##### Ports
 
-The key is the host addr/port, and the value is the dest container port. Examples:
+It's a list of:
+```text
+container: port/protocol
+host: [interface_ip:port, interface_ip:port]
+```
 
+For the container, you can omit the protocol to get tcp by default.
+
+For the host, you can omit the interface ip to get `0.0.0.0` which binds all interfaces.
+
+Examples:
 ```yml
-192.168.1.103:53/tcp: 53/tcp
-192.168.1.103:53/udp: 53/udp
-127.0.0.1:53/tcp: 53/tcp
-127.0.0.1:53/udp: 53/udp
-33200: 33200
-8080: 3000 # host port 8080 maps to container port 3000
+- container: 53/tcp
+  host: [192.168.1.103:53, 127.0.0.1:53]
+- container: 53/udp
+  host: [192.168.1.103:53, 127.0.0.1:53]
+- container: 33200 # tcp is implicit default, this is the same behavior as docker
+  host: [33200] # binds 0.0.0.0
+- container: 3000
+  host: [8080]
 ```
 
 ## Footnotes

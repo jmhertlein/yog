@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "yog"
-version = "1.4.1"
+version = "2.0.0"
 description = "The Gate and Key"
 authors = ["Josh Hertlein <jmhertlein@gmail.com>"]
 license = "AGPLv3"
@@ -18,7 +18,7 @@ PyYAML = "^6.0"
 docker = "^5.0.3"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
+pytest = "^7.2.1"
 twine = "^3.6.0"
 
 [build-system]

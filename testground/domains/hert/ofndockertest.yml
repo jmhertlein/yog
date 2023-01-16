@@ -1,0 +1,25 @@
+docker:
+  - image: weejewel/wg-easy
+    name: wg-in-test
+    fingerprint: sha256:79288cac4782dd9c37c2fc20d26eb663d2df9fa1d3a09b278d5c76411310ec0c
+    volumes:
+      /srv/wg-in/config: /etc/wireguard
+    ports:
+      - container: 51820/udp
+        host: [51820]
+      - container: 51821/tcp
+        host: [51821]
+    capabilities:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      net.ipv4.conf.all.src_valid_mark: 1
+      net.ipv4.conf.all.forwarding: 1
+      net.ipv4.conf.all.proxy_arp: 1
+      net.ipv4.ip_forward: 1
+    env:
+      WG_HOST: ofn.wg.josh.cafe
+      WG_PORT: 48888
+      PASSWORD: testpassword
+      WG_DEFAULT_DNS: 192.168.1.103, 192.168.1.189
+      WG_DEFAULT_ADDRESS: 192.168.100.x

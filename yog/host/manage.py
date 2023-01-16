@@ -2,14 +2,14 @@ import logging
 from os.path import dirname, join, isdir, isfile, basename
 
 import docker
-from docker.types import LogConfig
+from docker.models.containers import Container
 from paramiko import SSHClient, SSHException
 from paramiko.ssh_exception import NoValidConnectionsError
 
-from yog.host.manage_docker_utils import is_acceptable_container, my_format_to_run_ports_arg_format, build_volumes_dict
-from yog.ssh_utils import check_call, check_stdout, ScopedProxiedRemoteSSHTunnel, compare_local_and_remote
 from yog.host import necronomicon
+from yog.host.docker_attrs import build_run_kwargs_dict, diff_container
 from yog.host.necronomicon import Necronomicon
+from yog.ssh_utils import check_call, ScopedProxiedRemoteSSHTunnel, compare_local_and_remote
 
 log = logging.getLogger(__name__)
 
@@ -52,11 +52,13 @@ def apply_necronomicon_for_host(host: str, ssh: SSHClient, root_dir):
     if not necronomicons:
         raise RuntimeError(f"No necronomicons found for {host}")
 
+    necronomicons = [n.inflate(host, ssh) for n in necronomicons]
+
     for n in necronomicons:
         if n.files.files:
             apply_files_section(host, n, ssh, root_dir)
         if n.docker.containers:
-            apply_docker_section(host, n, ssh)
+            apply_docker_section(host, n)
         if n.cron.crons:
             apply_cron_section(host, n, ssh)
 
@@ -74,10 +76,10 @@ def apply_cron_section(host: str, n: Necronomicon, ssh: SSHClient):
         log.info(f"Writing /etc/cron.d/yog.cron version {expected[:10]}")
         check_call(ssh, "sudo bash -c 'cat - > /etc/cron.d/yog.cron'", send_stdin=cronfile_body)
     else:
-        log.info(f"[{host}][cron]: ok")
+        log.info(f"[{host}][cron]: OK")
 
 
-def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
+def apply_docker_section(host: str, n: Necronomicon):
     log.debug(f"Docker: {n.ident}")
     tunnels = []
     for tunnel_def in n.tunnels.tunnels:
@@ -101,54 +103,36 @@ def apply_docker_section(host: str, n: Necronomicon, ssh: SSHClient):
             for desired_container in n.docker.containers:
                 log.debug(desired_container)
 
-                desired_container_env = {}
-                for name, value in desired_container.env.items():
-                    value = str(value)
-                    if value.startswith("yogreadfile:"):
-                        try:
-                            desired_container_env[name] = "\n".join(check_stdout(ssh, f"sudo cat {value[len('yogreadfile:'):]}")).strip()
-                        except RuntimeError as err:
-                            log.error(f"Error processing yogreadfile: {value}", exc_info=err)
-                            raise RuntimeError(f"Error accessing file: {value[len('yogreadfile:'):]}")
-                    else:
-                        desired_container_env[name] = value
-
                 log.debug(f"PULL: {desired_container.image}@{desired_container.fingerprint}")
-                img = client.images.pull(f"{desired_container.image}@{desired_container.fingerprint}")
 
                 cur = client.containers.list(all=True, filters={"name": desired_container.name})
-                matches = []
-                for c in cur:
+                c: Container = cur[0] if len(cur) > 0 else None
+
+                if c:
                     log.debug(f"Existing container {c.id} is {c.status}")
-                    if is_acceptable_container(c, img, desired_container, desired_container_env):
+                    diffs = diff_container(c, desired_container)
+                    if not diffs:
                         log.debug(f"{c.id} is image {c.image.id} which matches our target.")
                         log.info(f"[{host}][docker]: OK {desired_container.name}@{desired_container.fingerprint[7:13]}")
-                        matches.append(c)
-                    else:
-                        if c.status in ["running", "restarting"]:
-                            log.debug(f"STOP {c.name}:{c.id}")
-                            c.stop()
-                        log.debug(f"RM: {c.name}:{c.id}")
-                        c.remove()
-                if len(matches) > 0:
-                    log.debug("Existing container matches our desired state. No need to kill it.")
-                else:
-                    log.debug(f"RUN: {desired_container.image}@{desired_container.fingerprint}")
-                    log.info(f"[{host}][docker]: stale {desired_container.name}")
-                    ports_dict = my_format_to_run_ports_arg_format(desired_container.ports)
-                    volumes_dict = build_volumes_dict(desired_container.volumes)
-                    client.containers.run(f"{desired_container.image}@{desired_container.fingerprint}",
-                                          name=desired_container.name,
-                                          restart_policy={'Name': "always"},
-                                          volumes=volumes_dict,
-                                          ports=ports_dict,
-                                          log_config=LogConfig(type=LogConfig.types.JOURNALD),
-                                          environment=desired_container_env,
-                                          detach=True,
-                                          command=desired_container.command,
-                                          cap_add=desired_container.capabilities,
-                                          sysctls=desired_container.sysctls,
-                                          )
+                        log.debug("Existing container matches our desired state. No need to kill it.")
+                        continue
+
+                    log.debug(f"[{host}][docker][{c.name}]: diffs:")
+                    for diff in diffs:
+                        log.debug(f"[{host}][docker][{c.name}]: {diff[0]}")
+                        log.debug(f"[{host}][docker][{c.name}]: {diff[1]}")
+                        log.debug(f"[{host}][docker][{c.name}]: {diff[2]}")
+
+                    if c.status in ["running", "restarting"]:
+                        log.debug(f"STOP {c.name}:{c.id}")
+                        c.stop()
+                    log.debug(f"RM: {c.name}:{c.id}")
+                    c.remove()
+
+                log.debug(f"RUN: {desired_container.image}@{desired_container.fingerprint}")
+                log.info(f"[{host}][docker]: run {desired_container.name}")
+                client.containers.run(**build_run_kwargs_dict(desired_container))
+
     finally:
         for tun in tunnels:
             try:
