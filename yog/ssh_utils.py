@@ -123,7 +123,7 @@ def get_pids_binding_port(bound_port: int) -> Set[int]:
 # this means success:
 # debug1: channel 0: new [port listener]
 
-success_pattern: Pattern = re.compile(r"^(debug1: channel \d+: new \[port listener])|(debug1: remote forward success for: listen \d+, connect localhost:\d+)$")
+success_pattern: Pattern = re.compile(r"^(debug1: channel \d+: new \[port listener])|(debug1: remote forward success for: listen \d+, connect localhost:\d+)|(debug1: channel \d+: new port-listener \[port listener\] \(inactive timeout: \d+\))$")
 
 
 def _render_cmd(rand_port, prefix, host, forward_flag, expr):
