@@ -1,3 +1,4 @@
+import typing as t
 import logging
 import os
 import re
@@ -10,11 +11,12 @@ from time import sleep
 from typing import Tuple, List, Optional, Set
 
 from paramiko import SSHClient, PKey
+import shlex
 
 log = logging.getLogger(__name__)
 
 
-def check_call(ssh: SSHClient, command: str, assert_stderr_empty: bool = False, send_stdin: Optional[str] = None, ):
+def check_call(ssh: SSHClient, command: str, assert_stderr_empty: bool = False, send_stdin: Optional[t.AnyStr] = None, ):
     stdin, stdout, stderr = ssh.exec_command(command)
     if send_stdin is not None:
         stdin.write(send_stdin)
@@ -254,6 +256,7 @@ def _try_setup_tunnel(port: int, cmd: List[str], stdout_file: NamedTemporaryFile
 
 def compare_local_and_remote(body: bytes, remote_path: str, ssh: SSHClient, root: bool = False):
     expected: str = sha512(body).hexdigest()
+    remote_path = shlex.quote(remote_path)
 
     found: Optional[str]
     if check_code(ssh, f"{'sudo ' if root else ''}test -f \"{remote_path}\""):
@@ -262,3 +265,35 @@ def compare_local_and_remote(body: bytes, remote_path: str, ssh: SSHClient, root
         found = None
 
     return expected == found, expected, found
+
+def cat(ssh: SSHClient, path: str, root: bool = False) -> str:
+    prefix = 'sudo ' if root else ''
+    path = shlex.quote(path)
+    cmd = prefix + f"cat {path}"
+    return check_stdout(ssh, cmd)
+
+def mkdirp(ssh: SSHClient, path: str, user: str = None):
+    path = shlex.quote(path)
+    cmd = f"mkdir -p {path}"
+    cmd = _as_user(cmd, user)
+    check_call(ssh, cmd)
+
+
+def _as_user(cmd: str, user: t.Optional[str]) -> str:
+    user = shlex.quote(user)
+    if user is None:
+        return cmd
+    elif user == "root":
+        return "sudo " + cmd
+    else:
+        return f"sudo -u {user} {cmd}"
+
+def exists(ssh: SSHClient, path: str) -> bool:
+    path = shlex.quote(path)
+    return check_code(ssh, f"test -e {path}")
+
+def put(ssh: SSHClient, path: str, content: t.AnyStr, user: t.Optional[str] = None, mode: t.Optional[str] = "644"):
+    path = shlex.quote(path)
+    check_call(ssh, _as_user(f"install -m {mode} /dev/null {path}", user))
+    subcommand = shlex.quote(f"cat - > {path}")
+    check_call(ssh, _as_user(f"bash -c {subcommand}", user), send_stdin=content)

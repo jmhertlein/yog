@@ -244,3 +244,14 @@ class NeededTunnel(t.NamedTuple):
 
 class NeededTunnelsSection(t.NamedTuple):
     tunnels: t.List[NeededTunnel]
+
+
+class CertEntry(t.NamedTuple):
+    authority: str
+    storage: str
+    validity_years: int
+    refresh_at: int
+
+class PKI(t.NamedTuple):
+    certs: t.List[CertEntry]
+    authorities: t.List[str]

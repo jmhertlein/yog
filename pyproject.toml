@@ -9,6 +9,7 @@ readme = "README.md"
 [tool.poetry.scripts]
 yog = "yog.host.main:main"
 yog-repo = "yog.repo.main:main"
+yog-pki = "yog.command:ca_main"
 
 
 [tool.poetry.dependencies]
