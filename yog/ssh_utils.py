@@ -79,11 +79,11 @@ def check_code(ssh: SSHClient,
     return True
 
 
-def check_stdout(ssh: SSHClient, command: str) -> str:
+def check_stdout(ssh: SSHClient, command: str) -> t.List[str]:
     return check_output(ssh, command)[0]
 
 
-def check_stderr(ssh: SSHClient, command: str) -> str:
+def check_stderr(ssh: SSHClient, command: str) -> t.List[str]:
     return check_output(ssh, command)[1]
 
 
@@ -94,14 +94,14 @@ def _dump_lines(title: str, lines: List[str]):
     print("--------------------------------")
 
 
-class NonzeroExitCodeError(RuntimeError):
+class NonzeroExitCodeError(Exception):
     code: int
 
     def __init__(self, code: int):
         self.code = code
 
 
-class StdErrNotEmptyError(RuntimeError):
+class StdErrNotEmptyError(Exception):
     contents: List[str]
 
     def __init__(self, contents: List[str]):
@@ -270,7 +270,7 @@ def cat(ssh: SSHClient, path: str, root: bool = False) -> str:
     prefix = 'sudo ' if root else ''
     path = shlex.quote(path)
     cmd = prefix + f"cat {path}"
-    return check_stdout(ssh, cmd)
+    return "".join(check_stdout(ssh, cmd))
 
 def mkdirp(ssh: SSHClient, path: str, user: str = None):
     path = shlex.quote(path)

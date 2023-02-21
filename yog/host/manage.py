@@ -9,6 +9,7 @@ from paramiko.ssh_exception import NoValidConnectionsError
 from yog.host import necronomicon
 from yog.host.docker_attrs import build_run_kwargs_dict, diff_container
 from yog.host.necronomicon import Necronomicon
+from yog.host.pki import apply_pki_section
 from yog.ssh_utils import check_call, ScopedProxiedRemoteSSHTunnel, compare_local_and_remote
 
 log = logging.getLogger(__name__)
@@ -61,6 +62,8 @@ def apply_necronomicon_for_host(host: str, ssh: SSHClient, root_dir):
             apply_docker_section(host, n)
         if n.cron.crons:
             apply_cron_section(host, n, ssh)
+        if n.pki.certs:
+            apply_pki_section(host, n, ssh, root_dir)
 
 
 def apply_cron_section(host: str, n: Necronomicon, ssh: SSHClient):
@@ -165,3 +168,6 @@ def apply_files_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
     for c in hupcmds:
         log.info(f"[{host}][files][hup]: {c}")
         check_call(ssh, c)
+
+
+

@@ -17,3 +17,4 @@ def load_cas(path: str) -> t.List[CAEntry]:
     with open(path, "r") as fin:
         raw = yaml.safe_load(fin.read())
     return [load_caentry(re) for re in raw]
+
