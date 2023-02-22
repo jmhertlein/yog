@@ -1,3 +1,4 @@
+import typing as t
 import logging
 import os
 import re
@@ -10,11 +11,12 @@ from time import sleep
 from typing import Tuple, List, Optional, Set
 
 from paramiko import SSHClient, PKey
+import shlex
 
 log = logging.getLogger(__name__)
 
 
-def check_call(ssh: SSHClient, command: str, assert_stderr_empty: bool = False, send_stdin: Optional[str] = None, ):
+def check_call(ssh: SSHClient, command: str, assert_stderr_empty: bool = False, send_stdin: Optional[t.AnyStr] = None, ):
     stdin, stdout, stderr = ssh.exec_command(command)
     if send_stdin is not None:
         stdin.write(send_stdin)
@@ -77,11 +79,11 @@ def check_code(ssh: SSHClient,
     return True
 
 
-def check_stdout(ssh: SSHClient, command: str) -> str:
+def check_stdout(ssh: SSHClient, command: str) -> t.List[str]:
     return check_output(ssh, command)[0]
 
 
-def check_stderr(ssh: SSHClient, command: str) -> str:
+def check_stderr(ssh: SSHClient, command: str) -> t.List[str]:
     return check_output(ssh, command)[1]
 
 
@@ -92,14 +94,14 @@ def _dump_lines(title: str, lines: List[str]):
     print("--------------------------------")
 
 
-class NonzeroExitCodeError(RuntimeError):
+class NonzeroExitCodeError(Exception):
     code: int
 
     def __init__(self, code: int):
         self.code = code
 
 
-class StdErrNotEmptyError(RuntimeError):
+class StdErrNotEmptyError(Exception):
     contents: List[str]
 
     def __init__(self, contents: List[str]):
@@ -254,6 +256,7 @@ def _try_setup_tunnel(port: int, cmd: List[str], stdout_file: NamedTemporaryFile
 
 def compare_local_and_remote(body: bytes, remote_path: str, ssh: SSHClient, root: bool = False):
     expected: str = sha512(body).hexdigest()
+    remote_path = shlex.quote(remote_path)
 
     found: Optional[str]
     if check_code(ssh, f"{'sudo ' if root else ''}test -f \"{remote_path}\""):
@@ -262,3 +265,41 @@ def compare_local_and_remote(body: bytes, remote_path: str, ssh: SSHClient, root
         found = None
 
     return expected == found, expected, found
+
+def cat(ssh: SSHClient, path: str, root: bool = False) -> str:
+    log.debug(f"cat {path}")
+    prefix = 'sudo ' if root else ''
+    path = shlex.quote(path)
+    cmd = prefix + f"cat {path}"
+    return "".join(check_stdout(ssh, cmd))
+
+def mkdirp(ssh: SSHClient, path: str, user: str = None):
+    log.debug(f"mkdir -p {path}")
+    path = shlex.quote(path)
+    cmd = f"mkdir -p {path}"
+    cmd = _as_user(cmd, user)
+    check_call(ssh, cmd)
+
+
+def _as_user(cmd: str, user: t.Optional[str]) -> str:
+    user = shlex.quote(user)
+    if user is None:
+        return cmd
+    elif user == "root":
+        return "sudo " + cmd
+    else:
+        return f"sudo -u {user} {cmd}"
+
+def exists(ssh: SSHClient, path: str) -> bool:
+    log.debug(f"exists? {path}")
+    path = shlex.quote(path)
+    ret = check_code(ssh, f"test -e {path}")
+    log.debug(f"exists? {path} = {ret}")
+    return ret
+
+def put(ssh: SSHClient, path: str, content: t.AnyStr, user: t.Optional[str] = None, mode: t.Optional[str] = "644"):
+    log.debug(f"put {path} {mode}")
+    path = shlex.quote(path)
+    check_call(ssh, _as_user(f"install -m {mode} /dev/null {path}", user))
+    subcommand = shlex.quote(f"cat - > {path}")
+    check_call(ssh, _as_user(f"bash -c {subcommand}", user), send_stdin=content)

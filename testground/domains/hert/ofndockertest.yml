@@ -23,3 +23,18 @@ docker:
       PASSWORD: testpassword
       WG_DEFAULT_DNS: 192.168.1.103, 192.168.1.189
       WG_DEFAULT_ADDRESS: 192.168.100.x
+
+pki:
+  certs:
+    - authority: hert-ca
+      storage: /srv/yog/cert/hert/
+      validity_years: 5
+      refresh_at: 1
+      names:
+        - something.hert
+        - somethingelse.hert
+        - athirdthing.hert
+
+files:
+  - src: ca:hert-ca
+    dest: /tmp/emplaced_ca.crt

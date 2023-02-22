@@ -1,0 +1,9 @@
+pki:
+  certs:
+    - authority: hert-ca
+      storage: /srv/yog/cert/hert/
+      validity_years: 9
+      refresh_at: 1
+      names:
+        - something.hert
+        - somethingelse.hert

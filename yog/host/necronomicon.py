@@ -5,6 +5,7 @@ from ipaddress import ip_address, IPv4Address
 
 import yaml
 from paramiko.client import SSHClient
+from yog.model_utils import HostPathStr, parse_hostpath
 
 from yog.ssh_utils import check_stdout
 
@@ -63,7 +64,14 @@ def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
     else:
         tunnels = NeededTunnelsSection([])
 
-    return Necronomicon(ident, tunnels, ds, cs, fs)
+    if 'pki' in parsed_necronomicon:
+        pki = PKI([CertEntry.from_parsed(e) for e in parsed_necronomicon['pki']['certs']] if 'certs' in parsed_necronomicon['pki'] else [],
+                  # parsed_necronomicon['pki']['authorities'] if 'authorities' in parsed_necronomicon['pki'] else []
+                  )
+    else:
+        pki = PKI([])
+
+    return Necronomicon(ident, tunnels, ds, cs, fs, pki)
 
 
 class Necronomicon(t.NamedTuple):
@@ -72,6 +80,7 @@ class Necronomicon(t.NamedTuple):
     docker: 'DockerSection'
     cron: 'CronSection'
     files: 'FileSection'
+    pki: 'PKI'
 
     def inflate(self, host: str, ssh: SSHClient) -> 'Necronomicon':
         inflated_containers = []
@@ -106,6 +115,7 @@ class Necronomicon(t.NamedTuple):
             DockerSection(inflated_containers),
             self.cron,
             self.files,
+            self.pki,
         )
 
 
@@ -244,3 +254,26 @@ class NeededTunnel(t.NamedTuple):
 
 class NeededTunnelsSection(t.NamedTuple):
     tunnels: t.List[NeededTunnel]
+
+
+class CertEntry(t.NamedTuple):
+    storage: str
+    validity_years: int
+    refresh_at: int
+    names: t.List[str]
+    authority: str
+
+    @staticmethod
+    def from_parsed(o: t.Any):
+        return CertEntry(
+            o['storage'],
+            int(o['validity_years']),
+            int(o['refresh_at']),
+            o['names'],
+            o['authority'],
+        )
+
+class PKI(t.NamedTuple):
+    certs: t.List[CertEntry]
+    # authorities: t.List[str]
+

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "yog"
-version = "2.0.1"
+version = "2.1.0"
 description = "The Gate and Key"
 authors = ["Josh Hertlein <jmhertlein@gmail.com>"]
 license = "AGPLv3"
@@ -9,6 +9,7 @@ readme = "README.md"
 [tool.poetry.scripts]
 yog = "yog.host.main:main"
 yog-repo = "yog.repo.main:main"
+yog-pki = "yog.command:ca_main"
 
 
 [tool.poetry.dependencies]

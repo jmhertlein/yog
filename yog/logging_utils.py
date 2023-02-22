@@ -7,7 +7,7 @@ from os.path import join, exists
 log = logging.getLogger(__name__)
 
 
-def setup(app: str):
+def setup(app: str, stdout_level: int = logging.INFO):
     ret = logging.getLogger(f"yog")
     ret.setLevel(logging.DEBUG)
 
@@ -25,7 +25,7 @@ def setup(app: str):
     ret.addHandler(logfile)
 
     stdout = logging.StreamHandler(sys.stdout)
-    stdout.setLevel(logging.INFO)
+    stdout.setLevel(stdout_level)
     stdout.setFormatter(logging.Formatter("%(message)s"))
     ret.addHandler(stdout)
 

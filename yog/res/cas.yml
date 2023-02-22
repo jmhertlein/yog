@@ -1,0 +1,3 @@
+- ident: hert-ca
+  storage: octavian.hert:/srv/yog/ca/hert/
+  validity_years: 9
