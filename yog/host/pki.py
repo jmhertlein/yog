@@ -304,8 +304,10 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             log.debug("no cert found")
 
         if not generate:
-            log.debug("No need to regenerate")
+            log.info(f"[{host}][pki][{ce.storage}]: OK")
             continue
+
+        log.info(f"[{host}][pki][{ce.storage}]: stale")
 
         trust_new = _gen_cert(ce, ca_data, ca)
         trust_new.write(ssh, ce.storage)
