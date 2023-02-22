@@ -196,8 +196,11 @@ def _apply_ca(ca: CAEntry):
     ssh.connect(ca.storage.host)
     try:
         _provision_hier(ssh, ca)
-        cadata = load_keypair_data(ssh, ca.storage.path)
-        if not cadata.data:
+        try:
+            cadata = load_keypair_data(ssh, ca.storage.path)
+        except ValueError:
+            cadata = None
+        if not cadata:
             _provision_ca(ssh, ca)
         else:
             log.info("CA is OK")
