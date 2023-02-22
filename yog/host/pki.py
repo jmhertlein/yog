@@ -37,7 +37,7 @@ class KeyPairData(t.NamedTuple):
         return load_pem_private_key([e for e in self.data if e.mattype == "private" and e.fname.endswith(".pem.openssl")][0].body.encode("utf-8"), None)
 
     def cert_names(self) -> t.List[str]:
-        e: x509.SubjectAlternativeName = self.crt().extensions.get_extension_for_class(x509.SubjectAlternativeName)
+        e: x509.SubjectAlternativeName = self.crt().extensions.get_extension_for_class(x509.SubjectAlternativeName).value
         return e.get_values_for_type(x509.DNSName)
 
     def issuer_cn(self) -> str:
@@ -49,7 +49,7 @@ class KeyPairData(t.NamedTuple):
 def _load_keypair_data(ssh: SSHClient, path: str) -> KeyPairData:
     mats = []
     for fname, mtype in [("key.pem.openssl", "private"), ("key.ssh", "private"),
-                         ("key.pem.pkcs1.public", "public"), ("key.ssh.public", "public"), ("key.crt", "public")]:
+                         ("key.pem.pkcs1.public", "public"), ("key.ssh.public", "public"), ("key.crt", "cert")]:
         if not exists(ssh, os.path.join(path, fname)):
             raise ValueError(f"Unable to load {path}")
         mats.append(
@@ -225,19 +225,26 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             expiry = cert.not_valid_after
             if (expiry - datetime.timedelta(days=365 * ce.refresh_at)) <= datetime.datetime.utcnow():
                 generate = True
+                log.debug("Expiry too soon")
             elif set(ce.names) != set(trust.cert_names()):
                 generate = True
+                log.debug("Set of names != cert names")
             elif trust.issuer_cn() != ce.authority:
                 generate = True
+                log.debug("Issuer CN != authority ident")
             elif expiry > (datetime.datetime.utcnow() + datetime.timedelta(days=365 * ce.validity_years)):
                 generate = True
+                log.debug("expiry too far out")
             elif cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value != ce.names[0]:
                 generate = True
+                log.debug("CN != cert CN")
         except ValueError:
             generate = True
+            log.debug("no cert found")
 
         if not generate:
-            return
+            log.debug("No need to regenerate")
+            continue
 
         root = [ca for ca in cas if ca.ident == ce.authority]
         if not root:
@@ -258,6 +265,3 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             log.info(f"put {km.fname}")
             put(ssh, os.path.join(ce.storage, km.fname), km.body, "root",
                 mode=("600" if km.mattype == "private" else "644"))
-
-
-

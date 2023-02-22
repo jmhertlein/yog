@@ -267,12 +267,14 @@ def compare_local_and_remote(body: bytes, remote_path: str, ssh: SSHClient, root
     return expected == found, expected, found
 
 def cat(ssh: SSHClient, path: str, root: bool = False) -> str:
+    log.debug(f"cat {path}")
     prefix = 'sudo ' if root else ''
     path = shlex.quote(path)
     cmd = prefix + f"cat {path}"
     return "".join(check_stdout(ssh, cmd))
 
 def mkdirp(ssh: SSHClient, path: str, user: str = None):
+    log.debug(f"mkdir -p {path}")
     path = shlex.quote(path)
     cmd = f"mkdir -p {path}"
     cmd = _as_user(cmd, user)
@@ -289,10 +291,14 @@ def _as_user(cmd: str, user: t.Optional[str]) -> str:
         return f"sudo -u {user} {cmd}"
 
 def exists(ssh: SSHClient, path: str) -> bool:
+    log.debug(f"exists? {path}")
     path = shlex.quote(path)
-    return check_code(ssh, f"test -e {path}")
+    ret = check_code(ssh, f"test -e {path}")
+    log.debug(f"exists? {path} = {ret}")
+    return ret
 
 def put(ssh: SSHClient, path: str, content: t.AnyStr, user: t.Optional[str] = None, mode: t.Optional[str] = "644"):
+    log.debug(f"put {path} {mode}")
     path = shlex.quote(path)
     check_call(ssh, _as_user(f"install -m {mode} /dev/null {path}", user))
     subcommand = shlex.quote(f"cat - > {path}")
