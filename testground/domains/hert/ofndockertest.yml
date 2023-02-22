@@ -34,3 +34,7 @@ pki:
         - something.hert
         - somethingelse.hert
         - athirdthing.hert
+
+files:
+  - src: ca:hert-ca
+    dest: /tmp/emplaced_ca.crt

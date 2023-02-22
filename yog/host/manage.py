@@ -1,15 +1,17 @@
 import logging
+import os.path
 from os.path import dirname, join, isdir, isfile, basename
 
 import docker
 from docker.models.containers import Container
 from paramiko import SSHClient, SSHException
 from paramiko.ssh_exception import NoValidConnectionsError
+from yog.host.pki_model import load_cas
 
 from yog.host import necronomicon
 from yog.host.docker_attrs import build_run_kwargs_dict, diff_container
-from yog.host.necronomicon import Necronomicon
-from yog.host.pki import apply_pki_section
+from yog.host.necronomicon import Necronomicon, File
+import yog.host.pki as pki
 from yog.ssh_utils import check_call, ScopedProxiedRemoteSSHTunnel, compare_local_and_remote
 
 log = logging.getLogger(__name__)
@@ -63,7 +65,7 @@ def apply_necronomicon_for_host(host: str, ssh: SSHClient, root_dir):
         if n.cron.crons:
             apply_cron_section(host, n, ssh)
         if n.pki.certs:
-            apply_pki_section(host, n, ssh, root_dir)
+            pki.apply_pki_section(host, n, ssh, root_dir)
 
 
 def apply_cron_section(host: str, n: Necronomicon, ssh: SSHClient):
@@ -144,13 +146,34 @@ def apply_docker_section(host: str, n: Necronomicon):
                 log.warning("Error while disconnecting tunnel", exc_info=e)
 
 
+def _load_file_content(f: File, root_dir: str) -> bytes:
+    if f.src.startswith("ca:"):
+        ca_ident = f.src[len("ca:"):]
+        matches = [ca for ca in load_cas(os.path.join(root_dir, "cas.yml")) if ca_ident == ca.ident]
+        if not matches:
+            raise ValueError(f"No such CA with ident {ca_ident}")
+        ca = matches[0]
+        ssh = SSHClient()
+        ssh.load_system_host_keys()
+        ssh.connect(ca.storage.host)
+        try:
+            trust = pki.load_keypair_data(ssh, ca.storage.path)
+        finally:
+            ssh.close()
+
+        return trust.raw_crt().body.encode("utf-8")
+
+
+    with open(join(root_dir, "files", f.src)) as fin:
+        return fin.read().encode("utf-8")
+
+
 def apply_files_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
     log.debug(f"Files: {n.ident}")
     hupcmds = set()
     for f in n.files.files:
-        with open(join(root_dir, "files", f.src)) as fin:
-            content = fin.read()
-        ok, _, _ = compare_local_and_remote(content.encode("utf-8"), f.dest, ssh, f.root)
+        content = _load_file_content(f, root_dir)
+        ok, _, _ = compare_local_and_remote(content, f.dest, ssh, f.root)
         if ok:
             log.info(f"[{host}][files]: OK [{f.src}]")
         else:

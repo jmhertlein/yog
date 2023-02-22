@@ -30,8 +30,11 @@ class KeyPairData(t.NamedTuple):
     # model: CAEntry
     data: t.List[KeyMaterial]
 
+    def raw_crt(self) -> KeyMaterial:
+        return [e for e in self.data if e.mattype == "cert"][0]
+
     def crt(self) -> Certificate:
-        return x509.load_pem_x509_certificate([e for e in self.data if e.mattype == "cert"][0].body.encode("utf-8"))
+        return x509.load_pem_x509_certificate(self.raw_crt().body.encode("utf-8"))
 
     def private(self) -> EllipticCurvePrivateKey:
         return load_pem_private_key([e for e in self.data if e.mattype == "private" and e.fname.endswith(".pem.openssl")][0].body.encode("utf-8"), None)
@@ -46,7 +49,7 @@ class KeyPairData(t.NamedTuple):
 
 
 
-def _load_keypair_data(ssh: SSHClient, path: str) -> KeyPairData:
+def load_keypair_data(ssh: SSHClient, path: str) -> KeyPairData:
     mats = []
     for fname, mtype in [("key.pem.openssl", "private"), ("key.ssh", "private"),
                          ("key.pem.pkcs1.public", "public"), ("key.ssh.public", "public"), ("key.crt", "cert")]:
@@ -193,7 +196,7 @@ def _apply_ca(ca: CAEntry):
     ssh.connect(ca.storage.host)
     try:
         _provision_hier(ssh, ca)
-        cadata = _load_keypair_data(ssh, ca.storage.path)
+        cadata = load_keypair_data(ssh, ca.storage.path)
         if not cadata.data:
             _provision_ca(ssh, ca)
         else:
@@ -220,7 +223,7 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
         generate = False
 
         try:
-            trust = _load_keypair_data(ssh, ce.storage)
+            trust = load_keypair_data(ssh, ce.storage)
             cert: Certificate = trust.crt()
             expiry = cert.not_valid_after
             if (expiry - datetime.timedelta(days=365 * ce.refresh_at)) <= datetime.datetime.utcnow():
@@ -255,7 +258,7 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
         ssh_ca.load_system_host_keys()
         ssh_ca.connect(ca.storage.host)
         try:
-            ca_data = _load_keypair_data(ssh_ca, ca.storage.path)
+            ca_data = load_keypair_data(ssh_ca, ca.storage.path)
         finally:
             ssh_ca.close()
 
