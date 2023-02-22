@@ -26,18 +26,42 @@ class KeyMaterial(t.NamedTuple):
     mattype: str
     body: str
 
+
+class KeyPairDataItem(t.NamedTuple):
+    field_name: str
+    fname: str
+    material_type: str
+
+KEY_PAIR_DATA_ITEMS = [
+    KeyPairDataItem("private_openssl", "key.pem.openssl", "private"),
+    KeyPairDataItem("private_ssh", "key.ssh", "private"),
+    KeyPairDataItem("public_pkcs", "key.pem.pkcs1.public", "public"),
+    KeyPairDataItem("public_ssh", "key.ssh.public", "public"),
+    KeyPairDataItem("certificate", "key.crt", "cert"),
+]
+
 class KeyPairData(t.NamedTuple):
-    # model: CAEntry
-    data: t.List[KeyMaterial]
+    serial: uuid.UUID
+    issuer_serial: uuid.UUID
+    private_ssh: KeyMaterial
+    private_openssl: KeyMaterial
+
+    public_pkcs: KeyMaterial
+    public_ssh: KeyMaterial
+
+    certificate: KeyMaterial
+
+    def materials(self) -> t.List[KeyMaterial]:
+        return [self.private_ssh, self.private_openssl, self.public_ssh, self.public_pkcs, self.certificate]
 
     def raw_crt(self) -> KeyMaterial:
-        return [e for e in self.data if e.mattype == "cert"][0]
+        return self.certificate
 
     def crt(self) -> Certificate:
         return x509.load_pem_x509_certificate(self.raw_crt().body.encode("utf-8"))
 
     def private(self) -> EllipticCurvePrivateKey:
-        return load_pem_private_key([e for e in self.data if e.mattype == "private" and e.fname.endswith(".pem.openssl")][0].body.encode("utf-8"), None)
+        return load_pem_private_key(self.private_openssl.body.encode("utf-8"), None)
 
     def cert_names(self) -> t.List[str]:
         e: x509.SubjectAlternativeName = self.crt().extensions.get_extension_for_class(x509.SubjectAlternativeName).value
@@ -46,25 +70,36 @@ class KeyPairData(t.NamedTuple):
     def issuer_cn(self) -> str:
         return self.crt().issuer.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
+    def write(self, ssh: SSHClient, path: str):
+        mkdirp(ssh, path, "root")
+        for km in self.materials():
+            put(ssh, os.path.join(path, km.fname), km.body, "root",
+                mode=("600" if km.mattype == "private" else "644"))
+        put(ssh, os.path.join(path, "issuer_serial.txt"), str(self.issuer_serial), "root")
+        put(ssh, os.path.join(path, "serial.txt"), str(self.serial), "root")
 
+    @staticmethod
+    def load(ssh: SSHClient, path: str) -> 'KeyPairData':
+        serial_path = os.path.join(path, "serial.txt")
+        issuer_serial_path = os.path.join(path, "issuer_serial.txt")
+        if (not exists(ssh, issuer_serial_path)) or (not exists(ssh, serial_path)):
+            raise ValueError(f"Unable to load {path} (missing serial file)")
 
+        serial = uuid.UUID(cat(ssh, serial_path))
+        issuer_serial = uuid.UUID(cat(ssh, issuer_serial_path))
 
-def load_keypair_data(ssh: SSHClient, path: str) -> KeyPairData:
-    mats = []
-    for fname, mtype in [("key.pem.openssl", "private"), ("key.ssh", "private"),
-                         ("key.pem.pkcs1.public", "public"), ("key.ssh.public", "public"), ("key.crt", "cert")]:
-        if not exists(ssh, os.path.join(path, fname)):
-            raise ValueError(f"Unable to load {path}")
-        mats.append(
-            KeyMaterial(
-                fname,
-                mtype,
-                cat(ssh, os.path.join(path, fname), mtype == "private")
+        args = {}
+        for i in KEY_PAIR_DATA_ITEMS:
+            if not exists(ssh, os.path.join(path, i.fname)):
+                raise ValueError(f"Unable to load {path} (missing key data)")
+            args[i.field_name] = KeyMaterial(
+                i.fname,
+                i.material_type,
+                cat(ssh, os.path.join(path, i.fname), i.material_type == "private")
             )
-        )
 
-    return KeyPairData(mats)
 
+        return KeyPairData(serial, issuer_serial, **args)
 
 
 def _gen_ca(ca: CAEntry):
@@ -83,7 +118,8 @@ def _gen_ca(ca: CAEntry):
     ]))
     builder = builder.not_valid_before(datetime.datetime.utcnow())
     builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=365*ca.validity_years))
-    builder = builder.serial_number(int(uuid.uuid4()))
+    serial_no = uuid.uuid4()
+    builder = builder.serial_number(int(serial_no))
     builder = builder.public_key(public_key)
     builder = builder.add_extension(
         x509.BasicConstraints(ca=True, path_length=None), critical=True,
@@ -93,17 +129,19 @@ def _gen_ca(ca: CAEntry):
         backend=default_backend()
     )
 
-    material = KeyPairData([
-        KeyMaterial("key.pem.openssl", "private", private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=serialization.NoEncryption(),
-            ).decode("utf-8")),
+    material = KeyPairData(
+        serial_no,
+        serial_no,
         KeyMaterial("key.ssh", "private", private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.OpenSSH,
             encryption_algorithm=serialization.NoEncryption(),
             ).decode("utf-8")),
+        KeyMaterial("key.pem.openssl", "private", private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode("utf-8")),
         KeyMaterial("key.pem.pkcs1.public", "public",
             public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
@@ -118,7 +156,7 @@ def _gen_ca(ca: CAEntry):
             certificate.public_bytes(
             encoding=serialization.Encoding.PEM,
             ).decode("utf-8")),
-    ])
+    )
 
     return material
 
@@ -139,7 +177,8 @@ def _gen_cert(ce: CertEntry, ca_data: KeyPairData, ca: CAEntry):
     ]))
     builder = builder.not_valid_before(datetime.datetime.utcnow())
     builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=365*ce.validity_years))
-    builder = builder.serial_number(int(uuid.uuid4()))
+    serial_no = uuid.uuid4()
+    builder = builder.serial_number(int(serial_no))
     builder = builder.public_key(public_key)
     builder = builder.add_extension(
         x509.SubjectAlternativeName([x509.DNSName(n) for n in ce.names]), critical=False
@@ -149,15 +188,17 @@ def _gen_cert(ce: CertEntry, ca_data: KeyPairData, ca: CAEntry):
         backend=default_backend()
     )
 
-    material = KeyPairData([
-        KeyMaterial("key.pem.openssl", "private", private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=serialization.NoEncryption(),
-            ).decode("utf-8")),
+    material = KeyPairData(
+        serial_no,
+        ca_data.issuer_serial,
         KeyMaterial("key.ssh", "private", private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.OpenSSH,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode("utf-8")),
+        KeyMaterial("key.pem.openssl", "private", private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm=serialization.NoEncryption(),
             ).decode("utf-8")),
         KeyMaterial("key.pem.pkcs1.public", "public",
@@ -174,7 +215,7 @@ def _gen_cert(ce: CertEntry, ca_data: KeyPairData, ca: CAEntry):
             certificate.public_bytes(
             encoding=serialization.Encoding.PEM,
             ).decode("utf-8")),
-    ])
+    )
 
     return material
 
@@ -197,7 +238,7 @@ def _apply_ca(ca: CAEntry):
     try:
         _provision_hier(ssh, ca)
         try:
-            cadata = load_keypair_data(ssh, ca.storage.path)
+            cadata = KeyPairData.load(ssh, ca.storage.path)
         except ValueError:
             cadata = None
         if not cadata:
@@ -214,9 +255,7 @@ def _provision_hier(ssh: SSHClient, ca: CAEntry):
 def _provision_ca(ssh: SSHClient, ca: CAEntry):
     log.info("Generating new CA...")
     cadata = _gen_ca(ca)
-    for km in cadata.data:
-        log.info(f"put {km.fname}")
-        put(ssh, os.path.join(ca.storage.path, km.fname), km.body, "root", mode=("600" if km.mattype=="private" else "644"))
+    cadata.write(ssh, ca.storage.path)
 
 
 def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
@@ -225,8 +264,21 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
     for ce in n.pki.certs:
         generate = False
 
+        root = [ca for ca in cas if ca.ident == ce.authority]
+        if not root:
+            raise ValueError(f"No such CA: {ce.authority}")
+        ca = root[0]
+
+        ssh_ca = SSHClient()
+        ssh_ca.load_system_host_keys()
+        ssh_ca.connect(ca.storage.host)
         try:
-            trust = load_keypair_data(ssh, ce.storage)
+            ca_data = KeyPairData.load(ssh_ca, ca.storage.path)
+        finally:
+            ssh_ca.close()
+
+        try:
+            trust = KeyPairData.load(ssh, ce.storage)
             cert: Certificate = trust.crt()
             expiry = cert.not_valid_after
             if (expiry - datetime.timedelta(days=365 * ce.refresh_at)) <= datetime.datetime.utcnow():
@@ -244,6 +296,9 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             elif cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value != ce.names[0]:
                 generate = True
                 log.debug("CN != cert CN")
+            elif ca_data.serial != trust.issuer_serial:
+                generate = True
+                log.debug("CA serial != cert issuer serial")
         except ValueError:
             generate = True
             log.debug("no cert found")
@@ -252,22 +307,5 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             log.debug("No need to regenerate")
             continue
 
-        root = [ca for ca in cas if ca.ident == ce.authority]
-        if not root:
-            raise ValueError(f"No such CA: {ce.authority}")
-        ca = root[0]
-
-        ssh_ca = SSHClient()
-        ssh_ca.load_system_host_keys()
-        ssh_ca.connect(ca.storage.host)
-        try:
-            ca_data = load_keypair_data(ssh_ca, ca.storage.path)
-        finally:
-            ssh_ca.close()
-
         trust_new = _gen_cert(ce, ca_data, ca)
-        mkdirp(ssh, ce.storage, "root")
-        for km in trust_new.data:
-            log.info(f"put {km.fname}")
-            put(ssh, os.path.join(ce.storage, km.fname), km.body, "root",
-                mode=("600" if km.mattype == "private" else "644"))
+        trust_new.write(ssh, ce.storage)

@@ -157,7 +157,7 @@ def _load_file_content(f: File, root_dir: str) -> bytes:
         ssh.load_system_host_keys()
         ssh.connect(ca.storage.host)
         try:
-            trust = pki.load_keypair_data(ssh, ca.storage.path)
+            trust = pki.KeyPairData.load(ssh, ca.storage.path)
         finally:
             ssh.close()
 
