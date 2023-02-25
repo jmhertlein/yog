@@ -1,6 +1,4 @@
-# Yog
-
-## Overview
+# Overview
 
 An opinionated docker-and-ssh-centric declarative system management tool.
 
@@ -28,7 +26,7 @@ Example run:
 
 [usage.webm](https://user-images.githubusercontent.com/1287152/209723654-e78b5283-60b5-4894-b5a1-3d2d71bfcc45.webm)
 
-## Setup
+# Setup
 
 1. Configure docker to listen on localhost's port 4243 (which is the default). See below.
 2. Use `ssh-copy-id` to copy your ssh key to all the servers you wish to manage. You can look into ssh certificates if
@@ -36,7 +34,7 @@ Example run:
 3. Configure the target system to allow you to use sudo without a password. [2]
 4. That's it. You now serve the nameless mist. Do you hear whippoorwills?
 
-### Docker port listening setup (step 1)
+## Docker port listening setup (step 1)
 
 ```bash
 ssh myhost
@@ -61,7 +59,7 @@ files:
     hupcmd: sudo systemctl restart docker
 ```
 
-## Usage
+# Usage
 
 Yog uses YML files that it calls "necronomicons" for configuration of hosts. It's organized hierarchically so
 that a necronomicon for "mytld" will be applied to all hosts under that TLD.
@@ -106,7 +104,7 @@ $ yog myhost.example.com
 [2022-12-26 11:02:07,117] [INFO]: [myhost.example.com][docker]: OK registry@sha256:8be26f81ffea54106bae012c6f349df70f4d5e7e2ec01b143c46e2c03b9e551d
 ```
 
-### Necronomicon format
+## Necronomicon format
 
 Let's look at a necronomicon.
 
@@ -144,7 +142,7 @@ pki:
         - myapp.local
 ```
 
-#### Files
+### Files
 
 Files are checked for equality via hash-comparison. I've found this a useful way to manage:
 
@@ -163,7 +161,7 @@ Attributes:
   which would handle it by reloading the config. Commonly nowadays you might be
   using `hupcmd: sudo systemctl reload nginx`
 
-#### Docker containers
+### Docker containers
 
 Docker containers are compared on all specified attributes and won't unnecessarily restart containers.
 
@@ -178,13 +176,13 @@ Attributes:
 * `ports`: ports to open. see below.
 * `env`: environment variables to set.
 
-##### Volumes
+#### Volumes
 
 For volumes, the key is the volume name and the value is the mount point.
 
 For bind mounts, the key is the host path and the value is the container path.
 
-##### Ports
+#### Ports
 
 It's a list of:
 
@@ -210,7 +208,7 @@ Examples:
   host: [ 8080 ]
 ```
 
-#### Public Key Infrastructure (PKI)
+### Public Key Infrastructure (PKI)
 
 Yog supports low-fuss local/private PKI management.
 
@@ -251,7 +249,7 @@ pki:
         - myapp.local # subsequent names are X.509 Alternative Names
 ```
 
-##### Trust Material Formats and Storage
+#### Trust Material Formats and Storage
 
 When yog or yog-pki write trust material to disk, it will restrict read access for private material but allow it for
 public.
@@ -266,7 +264,7 @@ Yog writes multiple formats to facilitate as many use-cases as possible with the
 | key.ssh.public       | SSH                 | SSH      |     public     |                       |
 | key.crt              | X.509 Certificate   | PEM      |     public     | good for nginx        |
 
-##### Crypto Remarks
+#### Crypto Remarks
 
 Yog tries to keep you out of the weeds and also to be a good, expressive, concise tool for what it considers itself good at.
 
@@ -285,7 +283,7 @@ I don't intend for yog-pki to handle huge, complicated PKIs. If you need to do s
 you might want to look at https://smallstep.com/. (You can use Yog's docker and file capabilities to
 deploy a smallstep installation!)
 
-## Footnotes
+# Footnotes
 
 [1] This is one of those things where I feel like you probably shouldn't manage root certs like this but I have yet to
 regret it? It's not a cryptographic secret, so.
@@ -293,6 +291,6 @@ regret it? It's not a cryptographic secret, so.
 [2] Also something that people say you probably shouldn't do but I've yet to regret. If your user is in the docker group
 it's basically root anyway from a threat modeling perspective.
 
-## `yog-repo`
+# `yog-repo`
 
 Yog also includes a tool for pushing images to your local docker registry. I haven't documented it yet, apologies. 
