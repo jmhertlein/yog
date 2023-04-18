@@ -308,6 +308,37 @@ class DockerNameDef(DockerAttribute):
         return SimpleDockerAttributeInstance(c.name)
 
 
+class DockerNetworkingModeDef(DockerAttribute):
+    def run_arg_name(self) -> str:
+        return "network_mode"
+
+    def from_necronomicon(self, dc: DockerContainer) -> 'DockerAttributeInstance':
+        return SimpleDockerAttributeInstance(dc.network_mode)
+
+    def from_container(self, c: Container) -> 'DockerAttributeInstance':
+        found = c.attrs['HostConfig']['NetworkMode']
+        # if found == "default":
+        #     found = "bridge"
+        return SimpleDockerAttributeInstance(found)
+
+
+class DockerNetworkingModeDefInstance(DockerAttributeInstance):
+    def __init__(self, network_mode_name):
+        self.network_mode_name = network_mode_name
+
+    def to_run_arg(self) -> t.Any:
+        if self.network_mode_name == "default":
+            return None
+        else:
+            return self.network_mode_name
+
+    def is_satisfied_by(self, other: 'DockerNetworkingModeDefInstance'):
+        return self.network_mode_name == other.network_mode_name
+
+    def __repr__(self) -> str:
+        return repr(self.network_mode_name)
+
+
 def diff_container(c: Container, dc: DockerContainer) -> t.List[t.Tuple[str, t.Any, t.Any]]:
     diffs = []
     for da in SUPPORTED_DOCKER_ATTRS:
@@ -332,4 +363,5 @@ SUPPORTED_DOCKER_ATTRS: t.List['DockerAttribute'] = [
     DockerLoggingDef(),
     DockerRestartPolicyDef(),
     DockerNameDef(),
+    DockerNetworkingModeDef(),
 ]

@@ -125,8 +125,8 @@ def apply_docker_section(host: str, n: Necronomicon):
                     log.debug(f"[{host}][docker][{c.name}]: diffs:")
                     for diff in diffs:
                         log.debug(f"[{host}][docker][{c.name}]: {diff[0]}")
-                        log.debug(f"[{host}][docker][{c.name}]: {diff[1]}")
-                        log.debug(f"[{host}][docker][{c.name}]: {diff[2]}")
+                        log.debug(f"[{host}][docker][{c.name}]: desired {diff[1]}")
+                        log.debug(f"[{host}][docker][{c.name}]: found {diff[2]}")
 
                     if c.status in ["running", "restarting"]:
                         log.debug(f"STOP {c.name}:{c.id}")

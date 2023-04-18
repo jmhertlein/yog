@@ -44,6 +44,7 @@ def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
             e['command'] if 'command' in e else None,
             e['capabilities'] if 'capabilities' in e else [],
             {str(k): str(v) for k, v in e['sysctls'].items()} if 'sysctls' in e else {},
+            e['network_mode'] if 'network_mode' in e else "default",
         ) for e in parsed_necronomicon['docker']])
     else:
         ds = DockerSection([])
@@ -107,6 +108,7 @@ class Necronomicon(t.NamedTuple):
                 desired_container.command,
                 desired_container.capabilities,
                 desired_container.sysctls,
+                desired_container.network_mode,
             ))
 
         return Necronomicon(
@@ -133,6 +135,7 @@ class DockerContainer(t.NamedTuple):
     command: t.Optional[str]
     capabilities: t.List[str]
     sysctls: t.Mapping[str, str]
+    network_mode: str
 
 
 class PortEntry(t.NamedTuple):
