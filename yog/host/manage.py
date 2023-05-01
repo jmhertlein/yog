@@ -75,11 +75,11 @@ def apply_cron_section(host: str, n: Necronomicon, ssh: SSHClient):
     for cron in n.cron.crons:
         cronfile_lines.append(f"{cron.expr.ljust(line1_length, ' ')}\t{cron.user.ljust(line2_length, ' ')}\t{cron.command}")
     cronfile_body = "\n".join(cronfile_lines + [""])
-    ok, expected, found = compare_local_and_remote(bytes(cronfile_body, "utf-8"), "/etc/cron.d/yog.cron", ssh)
+    ok, expected, found = compare_local_and_remote(bytes(cronfile_body, "utf-8"), "/etc/cron.d/yog", ssh)
     if not ok:
         log.info(f"[{host}][cron]: stale")
-        log.info(f"Writing /etc/cron.d/yog.cron version {expected[:10]}")
-        check_call(ssh, "sudo bash -c 'cat - > /etc/cron.d/yog.cron'", send_stdin=cronfile_body)
+        log.info(f"Writing /etc/cron.d/yog version {expected[:10]}")
+        check_call(ssh, "sudo bash -c 'cat - > /etc/cron.d/yog'", send_stdin=cronfile_body)
     else:
         log.info(f"[{host}][cron]: OK")
 
