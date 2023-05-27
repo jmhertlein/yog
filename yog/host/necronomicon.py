@@ -261,22 +261,22 @@ class NeededTunnelsSection(t.NamedTuple):
 
 class CertEntry(t.NamedTuple):
     storage: str
-    validity_years: int
-    refresh_at: int
+    validity_period: str
+    refresh_at_period: str
     names: t.List[str]
     authority: str
+    hupcmd: str
 
     @staticmethod
     def from_parsed(o: t.Any):
         return CertEntry(
             o['storage'],
-            int(o['validity_years']),
-            int(o['refresh_at']),
+            str(o['validity_period']),
+            str(o['refresh_at_period']),
             o['names'],
             o['authority'],
+            o['hupcmd']
         )
-
 class PKI(t.NamedTuple):
     certs: t.List[CertEntry]
-    # authorities: t.List[str]
 

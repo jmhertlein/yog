@@ -15,9 +15,8 @@ from cryptography.x509.oid import NameOID
 from paramiko.client import SSHClient
 
 from yog.host.necronomicon import CertEntry, Necronomicon
-from yog.host.pki_model import CAEntry, load_cas
-from yog.model_utils import HostPathStr
-from yog.ssh_utils import mkdirp, cat, exists, put
+from yog.host.pki_model import CAEntry, load_cas, parse_validity_period
+from yog.ssh_utils import mkdirp, cat, exists, put, check_call
 
 log = logging.getLogger(__name__)
 
@@ -117,7 +116,7 @@ def _gen_ca(ca: CAEntry):
         x509.NameAttribute(NameOID.COMMON_NAME, ca.ident),
     ]))
     builder = builder.not_valid_before(datetime.datetime.utcnow())
-    builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=365*ca.validity_years))
+    builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=ca.validity_days))
     serial_no = uuid.uuid4()
     builder = builder.serial_number(int(serial_no))
     builder = builder.public_key(public_key)
@@ -176,7 +175,7 @@ def _gen_cert(ce: CertEntry, ca_data: KeyPairData, ca: CAEntry):
         x509.NameAttribute(NameOID.COMMON_NAME, ca.ident),
     ]))
     builder = builder.not_valid_before(datetime.datetime.utcnow())
-    builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=365*ce.validity_years))
+    builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=parse_validity_period(ce.validity_period)))
     serial_no = uuid.uuid4()
     builder = builder.serial_number(int(serial_no))
     builder = builder.public_key(public_key)
@@ -261,6 +260,8 @@ def _provision_ca(ssh: SSHClient, ca: CAEntry):
 def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
     cas = load_cas(os.path.join(root_dir, "cas.yml"))
 
+    hupcmds = set()
+
     for ce in n.pki.certs:
         generate = False
 
@@ -281,7 +282,7 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             trust = KeyPairData.load(ssh, ce.storage)
             cert: Certificate = trust.crt()
             expiry = cert.not_valid_after
-            if (expiry - datetime.timedelta(days=365 * ce.refresh_at)) <= datetime.datetime.utcnow():
+            if (expiry - datetime.timedelta(days=parse_validity_period(ce.refresh_at_period))) <= datetime.datetime.utcnow():
                 generate = True
                 log.debug("Expiry too soon")
             elif set(ce.names) != set(trust.cert_names()):
@@ -290,7 +291,7 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             elif trust.issuer_cn() != ce.authority:
                 generate = True
                 log.debug("Issuer CN != authority ident")
-            elif expiry > (datetime.datetime.utcnow() + datetime.timedelta(days=365 * ce.validity_years)):
+            elif expiry > (datetime.datetime.utcnow() + datetime.timedelta(days=parse_validity_period(ce.validity_period))):
                 generate = True
                 log.debug("expiry too far out")
             elif cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value != ce.names[0]:
@@ -311,3 +312,9 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
 
         trust_new = _gen_cert(ce, ca_data, ca)
         trust_new.write(ssh, ce.storage)
+
+        hupcmds.add(ce.hupcmd)
+
+    for cmd in hupcmds:
+        log.info(f"[{host}][files][hup]: {cmd}")
+        check_call(ssh, cmd)
