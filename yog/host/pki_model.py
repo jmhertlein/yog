@@ -9,7 +9,7 @@ from yog.model_utils import HostPathStr, parse_hostpath
 class CAEntry(t.NamedTuple):
     ident: str
     storage: HostPathStr
-    validity_period: int
+    validity_period: str
 
 
 def parse_validity_period(s: str) -> int:

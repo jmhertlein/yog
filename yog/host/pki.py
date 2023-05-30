@@ -122,7 +122,7 @@ def _gen_ca(ca: CAEntry):
         x509.NameAttribute(NameOID.COMMON_NAME, ca.ident),
     ]))
     builder = builder.not_valid_before(datetime.datetime.utcnow())
-    builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=ca.validity_days))
+    builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=parse_validity_period(ca.validity_period)))
     serial_no = uuid.uuid4()
     builder = builder.serial_number(int(serial_no))
     builder = builder.public_key(public_key)
