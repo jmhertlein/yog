@@ -15,8 +15,9 @@ from cryptography.x509.oid import NameOID
 from paramiko.client import SSHClient
 
 from yog.host.necronomicon import CertEntry, Necronomicon
+from yog.host.os_utils import Perms, Owner, RWXBits
 from yog.host.pki_model import CAEntry, load_cas, parse_validity_period
-from yog.ssh_utils import mkdirp, cat, exists, put, check_call
+from yog.ssh_utils import mkdirp, cat, exists, put, check_call, check_output, stat
 
 log = logging.getLogger(__name__)
 
@@ -24,6 +25,8 @@ class KeyMaterial(t.NamedTuple):
     fname: str
     mattype: str
     body: str
+    owner: t.Optional[Owner]
+    perms: t.Optional[Perms]
 
 
 class KeyPairDataItem(t.NamedTuple):
@@ -38,6 +41,7 @@ KEY_PAIR_DATA_ITEMS = [
     KeyPairDataItem("public_ssh", "key.ssh.public", "public"),
     KeyPairDataItem("certificate", "key.crt", "cert"),
 ]
+
 
 class KeyPairData(t.NamedTuple):
     serial: uuid.UUID
@@ -69,11 +73,13 @@ class KeyPairData(t.NamedTuple):
     def issuer_cn(self) -> str:
         return self.crt().issuer.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
-    def write(self, ssh: SSHClient, path: str):
+    def write(self, ssh: SSHClient, path: str, owner: t.Optional[Owner], perms: t.Optional[Perms]):
         mkdirp(ssh, path, "root")
         for km in self.materials():
-            put(ssh, os.path.join(path, km.fname), km.body, "root",
-                mode=("600" if km.mattype == "private" else "644"))
+            put(ssh, os.path.join(path, km.fname), km.body,
+                user=owner.user if owner else None,
+                group=owner.group if owner else None,
+                mode=("600" if km.mattype == "private" else perms.to_chmod_expr() if perms else "644"))
         put(ssh, os.path.join(path, "issuer_serial.txt"), str(self.issuer_serial), "root")
         put(ssh, os.path.join(path, "serial.txt"), str(self.serial), "root")
 
@@ -94,11 +100,11 @@ class KeyPairData(t.NamedTuple):
             args[i.field_name] = KeyMaterial(
                 i.fname,
                 i.material_type,
-                cat(ssh, os.path.join(path, i.fname), i.material_type == "private")
+                cat(ssh, os.path.join(path, i.fname), i.material_type == "private"),
+                *stat(ssh, os.path.join(path, i.fname))
             )
 
-
-        return KeyPairData(serial, issuer_serial, **args)
+        return KeyPairData(serial, issuer_serial, **args) # TODO these Nones
 
 
 def _gen_ca(ca: CAEntry):
@@ -135,26 +141,26 @@ def _gen_ca(ca: CAEntry):
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.OpenSSH,
             encryption_algorithm=serialization.NoEncryption(),
-            ).decode("utf-8")),
+            ).decode("utf-8"), None, None),
         KeyMaterial("key.pem.openssl", "private", private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm=serialization.NoEncryption(),
-        ).decode("utf-8")),
+        ).decode("utf-8"), None, None),
         KeyMaterial("key.pem.pkcs1.public", "public",
             public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
-            ).decode("utf-8")),
+            ).decode("utf-8"), None, None),
         KeyMaterial("key.ssh.public", "public",
             public_key.public_bytes(
             encoding=serialization.Encoding.OpenSSH,
             format=serialization.PublicFormat.OpenSSH,
-            ).decode("utf-8")),
+            ).decode("utf-8"), None, None),
         KeyMaterial("key.crt", "cert",
             certificate.public_bytes(
             encoding=serialization.Encoding.PEM,
-            ).decode("utf-8")),
+            ).decode("utf-8"), None, None),
     )
 
     return material
@@ -194,26 +200,26 @@ def _gen_cert(ce: CertEntry, ca_data: KeyPairData, ca: CAEntry):
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.OpenSSH,
             encryption_algorithm=serialization.NoEncryption(),
-        ).decode("utf-8")),
+        ).decode("utf-8"), None, None),
         KeyMaterial("key.pem.openssl", "private", private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm=serialization.NoEncryption(),
-            ).decode("utf-8")),
+            ).decode("utf-8"), None, None),
         KeyMaterial("key.pem.pkcs1.public", "public",
             public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
-            ).decode("utf-8")),
+            ).decode("utf-8"), None, None),
         KeyMaterial("key.ssh.public", "public",
             public_key.public_bytes(
             encoding=serialization.Encoding.OpenSSH,
             format=serialization.PublicFormat.OpenSSH,
-            ).decode("utf-8")),
+            ).decode("utf-8"), None, None),
         KeyMaterial("key.crt", "cert",
             certificate.public_bytes(
             encoding=serialization.Encoding.PEM,
-            ).decode("utf-8")),
+            ).decode("utf-8"), None, None),
     )
 
     return material
@@ -279,16 +285,16 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             ssh_ca.close()
 
         try:
-            trust = KeyPairData.load(ssh, ce.storage)
-            cert: Certificate = trust.crt()
+            cur_trust = KeyPairData.load(ssh, ce.storage)
+            cert: Certificate = cur_trust.crt()
             expiry = cert.not_valid_after
             if (expiry - datetime.timedelta(days=parse_validity_period(ce.refresh_at_period))) <= datetime.datetime.utcnow():
                 generate = True
                 log.debug("Expiry too soon")
-            elif set(ce.names) != set(trust.cert_names()):
+            elif set(ce.names) != set(cur_trust.cert_names()):
                 generate = True
                 log.debug("Set of names != cert names")
-            elif trust.issuer_cn() != ce.authority:
+            elif cur_trust.issuer_cn() != ce.authority:
                 generate = True
                 log.debug("Issuer CN != authority ident")
             elif expiry > (datetime.datetime.utcnow() + datetime.timedelta(days=parse_validity_period(ce.validity_period))):
@@ -297,9 +303,15 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             elif cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value != ce.names[0]:
                 generate = True
                 log.debug("CN != cert CN")
-            elif ca_data.serial != trust.issuer_serial:
+            elif ca_data.serial != cur_trust.issuer_serial:
                 generate = True
                 log.debug("CA serial != cert issuer serial")
+            elif ce.chown and any(ce.chown != m.owner for m in cur_trust.materials() if m.mattype != "private"):
+                generate = True
+                log.debug("chown != current ownership")
+            elif ce.chmod and any(Perms(*RWXBits.from_stat(ce.chmod)) != m.perms for m in cur_trust.materials() if m.mattype != "private"):
+                generate = True
+                log.debug("chmod != current perms")
         except ValueError:
             generate = True
             log.debug("no cert found")
@@ -311,10 +323,11 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
         log.info(f"[{host}][pki]: stale [{ce.storage}]")
 
         trust_new = _gen_cert(ce, ca_data, ca)
-        trust_new.write(ssh, ce.storage)
+        trust_new.write(ssh, ce.storage, None if not ce.chown else Owner.from_str(ce.chown), None if not ce.chmod else Perms(*RWXBits.from_stat(ce.chmod)))
 
-        hupcmds.add(ce.hupcmd)
+        if ce.hupcmd:
+            hupcmds.add(ce.hupcmd)
 
     for cmd in hupcmds:
-        log.info(f"[{host}][files][hup]: {cmd}")
+        log.info(f"[{host}][pki][hup]: {cmd}")
         check_call(ssh, cmd)

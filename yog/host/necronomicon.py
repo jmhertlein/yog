@@ -265,7 +265,9 @@ class CertEntry(t.NamedTuple):
     refresh_at_period: str
     names: t.List[str]
     authority: str
-    hupcmd: str
+    hupcmd: t.Optional[str]
+    chmod: t.Optional[str]
+    chown: t.Optional[str]
 
     @staticmethod
     def from_parsed(o: t.Any):
@@ -275,8 +277,12 @@ class CertEntry(t.NamedTuple):
             str(o['refresh_at_period']),
             o['names'],
             o['authority'],
-            o['hupcmd']
+            o['hupcmd'] if 'hupcmd' in o else None,
+            o['chmod'] if 'chmod' in o else "rw-r--r--",
+            o['chown'] if 'chown' in o else "root:root",
         )
+
+
 class PKI(t.NamedTuple):
     certs: t.List[CertEntry]
 

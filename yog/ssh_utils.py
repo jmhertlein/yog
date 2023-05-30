@@ -1,3 +1,4 @@
+import getpass
 import typing as t
 import logging
 import os
@@ -12,6 +13,8 @@ from typing import Tuple, List, Optional, Set
 
 from paramiko import SSHClient, PKey
 import shlex
+
+from yog.host.os_utils import Owner, RWXBits, Perms
 
 log = logging.getLogger(__name__)
 
@@ -281,6 +284,17 @@ def mkdirp(ssh: SSHClient, path: str, user: str = None):
     check_call(ssh, cmd)
 
 
+def stat(ssh: SSHClient, path: str) -> t.Tuple[Owner, Perms]:
+    path = shlex.quote(path)
+    # stat -c '%A %U:%G'
+    raw = check_output(ssh, f"stat -c {shlex.quote('%A %U:%G')} {path}")[0][0]
+    log.debug(f"stat: {path}: {raw}")
+    perms, owner = raw.split(" ", 1)
+    perms = perms[-9:]
+
+    return Owner.from_str(owner), Perms(*RWXBits.from_stat(perms))
+
+
 def _as_user(cmd: str, user: t.Optional[str]) -> str:
     user = shlex.quote(user)
     if user is None:
@@ -290,6 +304,7 @@ def _as_user(cmd: str, user: t.Optional[str]) -> str:
     else:
         return f"sudo -u {user} {cmd}"
 
+
 def exists(ssh: SSHClient, path: str) -> bool:
     log.debug(f"exists? {path}")
     path = shlex.quote(path)
@@ -297,9 +312,20 @@ def exists(ssh: SSHClient, path: str) -> bool:
     log.debug(f"exists? {path} = {ret}")
     return ret
 
-def put(ssh: SSHClient, path: str, content: t.AnyStr, user: t.Optional[str] = None, mode: t.Optional[str] = "644"):
-    log.debug(f"put {path} {mode}")
+
+def put(ssh: SSHClient, path: str, content: t.AnyStr, user: t.Optional[str] = None, group: t.Optional[str]=None, mode: t.Optional[str] = "644"):
+    log.debug(f"put {path} {user}:{group} {mode}")
+    mode = shlex.quote(mode)
     path = shlex.quote(path)
-    check_call(ssh, _as_user(f"install -m {mode} /dev/null {path}", user))
+
+    install_opts = [f"-m {mode}"]
+    if user:
+        user = shlex.quote(user)
+        install_opts.append(f"-o {user}")
+    if group:
+        group = shlex.quote(group)
+        install_opts.append(f"-g {group}")
+    check_call(ssh, _as_user(f"install {' '.join(install_opts)} /dev/null {path}", "root"))
+
     subcommand = shlex.quote(f"cat - > {path}")
-    check_call(ssh, _as_user(f"bash -c {subcommand}", user), send_stdin=content)
+    check_call(ssh, _as_user(f"bash -c {subcommand}", "root"), send_stdin=content)

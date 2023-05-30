@@ -188,6 +188,7 @@ def apply_files_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
 
             check_call(ssh, f"{cmd_prefix}mkdir -p \"{dirname(f.dest)}\"")
             check_call(ssh, f"{cmd_prefix}bash -c 'cat - > \"{f.dest}\"'", send_stdin=content)
+
     for c in hupcmds:
         log.info(f"[{host}][files][hup]: {c}")
         check_call(ssh, c)
