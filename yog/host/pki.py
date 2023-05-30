@@ -306,7 +306,7 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             elif ca_data.serial != cur_trust.issuer_serial:
                 generate = True
                 log.debug("CA serial != cert issuer serial")
-            elif ce.chown and any(ce.chown != m.owner for m in cur_trust.materials() if m.mattype != "private"):
+            elif ce.chown and any(Owner.from_str(ce.chown) != m.owner for m in cur_trust.materials() if m.mattype != "private"):
                 generate = True
                 log.debug("chown != current ownership")
             elif ce.chmod and any(Perms(*RWXBits.from_stat(ce.chmod)) != m.perms for m in cur_trust.materials() if m.mattype != "private"):

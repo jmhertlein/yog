@@ -287,7 +287,7 @@ def mkdirp(ssh: SSHClient, path: str, user: str = None):
 def stat(ssh: SSHClient, path: str) -> t.Tuple[Owner, Perms]:
     path = shlex.quote(path)
     # stat -c '%A %U:%G'
-    raw = check_output(ssh, f"stat -c {shlex.quote('%A %U:%G')} {path}")[0][0]
+    raw = check_output(ssh, f"stat -c {shlex.quote('%A %U:%G')} {path}")[0][0].strip()
     log.debug(f"stat: {path}: {raw}")
     perms, owner = raw.split(" ", 1)
     perms = perms[-9:]
