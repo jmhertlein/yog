@@ -73,7 +73,7 @@ class KeyPairData(t.NamedTuple):
     def issuer_cn(self) -> str:
         return self.crt().issuer.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
-    def write(self, ssh: SSHClient, path: str, owner: t.Optional[Owner], perms: t.Optional[Perms]):
+    def write(self, ssh: SSHClient, path: str, owner: t.Optional[Owner]=None, perms: t.Optional[Perms]=None):
         mkdirp(ssh, path, "root")
         for km in self.materials():
             put(ssh, os.path.join(path, km.fname), km.body,

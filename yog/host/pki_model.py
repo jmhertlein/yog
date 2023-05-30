@@ -22,7 +22,7 @@ def parse_validity_period(s: str) -> int:
 
 
 def load_caentry(raw: t.Any) -> CAEntry:
-    return CAEntry(raw["ident"], parse_hostpath(raw["storage"]), parse_validity_period(str(raw["validity_period"])))
+    return CAEntry(raw["ident"], parse_hostpath(raw["storage"]), str(raw["validity_period"]))
 
 
 def load_cas(path: str) -> t.List[CAEntry]:
