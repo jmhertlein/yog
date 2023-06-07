@@ -1,4 +1,5 @@
 import logging
+import re
 import typing as t
 from dataclasses import dataclass
 from ipaddress import ip_address, IPv4Address
@@ -72,7 +73,12 @@ def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
     else:
         pki = PKI([])
 
-    return Necronomicon(ident, tunnels, ds, cs, fs, pki)
+    if 'systemd' in parsed_necronomicon:
+        systemd = SystemdSection.from_parsed(parsed_necronomicon['systemd'])
+    else:
+        systemd = SystemdSection(units=[])
+
+    return Necronomicon(ident, tunnels, ds, cs, fs, pki, systemd)
 
 
 class Necronomicon(t.NamedTuple):
@@ -82,6 +88,7 @@ class Necronomicon(t.NamedTuple):
     cron: 'CronSection'
     files: 'FileSection'
     pki: 'PKI'
+    systemd: 'SystemdSection'
 
     def inflate(self, host: str, ssh: SSHClient) -> 'Necronomicon':
         inflated_containers = []
@@ -118,6 +125,7 @@ class Necronomicon(t.NamedTuple):
             self.cron,
             self.files,
             self.pki,
+            self.systemd
         )
 
 
@@ -285,4 +293,25 @@ class CertEntry(t.NamedTuple):
 
 class PKI(t.NamedTuple):
     certs: t.List[CertEntry]
+
+
+class SystemdUnit(t.NamedTuple):
+    name: str
+    description: str
+    user: str
+    cmd: str
+
+    @staticmethod
+    def from_parsed(p) -> 'SystemdUnit':
+        if not re.match(r'[a-zA-Z0-9-_.]+', p['name']):
+            raise ValueError("Systemd unit names must be [a-zA-Z0-9-_.]")
+        return SystemdUnit(p['name'], p['description'], p['user'] if 'user' in p else 'root', p['cmd'])
+
+
+class SystemdSection(t.NamedTuple):
+    units: t.List[SystemdUnit]
+
+    @staticmethod
+    def from_parsed(parsed) -> 'SystemdSection':
+        return SystemdSection(units=[SystemdUnit.from_parsed(p) for p in parsed['units']])
 
