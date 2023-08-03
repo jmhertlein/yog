@@ -197,4 +197,7 @@ def apply_files_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
         check_call(ssh, c)
 
 
+def apply_pipx_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
+    # sudo PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install hert --pip-args \"--extra-index-url 'https://pyrepo.hert/' --trusted-host pyrepo.hert\"
+    pass
 
