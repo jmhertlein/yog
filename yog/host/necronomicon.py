@@ -78,7 +78,12 @@ def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
     else:
         systemd = SystemdSection(units=[])
 
-    return Necronomicon(ident, tunnels, ds, cs, fs, pki, systemd)
+    if 'pipx' in parsed_necronomicon:
+        pipx = PipXSection.from_parsed(parsed_necronomicon['pipx'])
+    else:
+        pipx = PipXSection([], [])
+
+    return Necronomicon(ident, tunnels, ds, cs, fs, pki, systemd, pipx)
 
 
 class Necronomicon(t.NamedTuple):
@@ -89,6 +94,7 @@ class Necronomicon(t.NamedTuple):
     files: 'FileSection'
     pki: 'PKI'
     systemd: 'SystemdSection'
+    pipx: 'PipXSection'
 
     def inflate(self, host: str, ssh: SSHClient) -> 'Necronomicon':
         inflated_containers = []
@@ -125,7 +131,8 @@ class Necronomicon(t.NamedTuple):
             self.cron,
             self.files,
             self.pki,
-            self.systemd
+            self.systemd,
+            self.pipx,
         )
 
 
@@ -314,4 +321,25 @@ class SystemdSection(t.NamedTuple):
     @staticmethod
     def from_parsed(parsed) -> 'SystemdSection':
         return SystemdSection(units=[SystemdUnit.from_parsed(p) for p in parsed['units']])
+
+
+class PipXSection(t.NamedTuple):
+    extra_indices: t.List[str]
+    packages: t.List['PipXPackage']
+
+    @staticmethod
+    def from_parsed(parsed: t.Any) -> 'PipXSection':
+        return PipXSection(
+            parsed['extra_indices'] if ('extra_indices' in parsed) else [],
+            [PipXPackage.from_parsed(p) for p in parsed['packages']] if 'packages' in parsed else []
+        )
+
+
+class PipXPackage(t.NamedTuple):
+    name: str
+    version: str
+
+    @staticmethod
+    def from_parsed(parsed: t.Any) -> 'PipXPackage':
+        return PipXPackage(parsed['name'], str(parsed['version']))
 

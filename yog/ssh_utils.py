@@ -19,8 +19,15 @@ from yog.host.os_utils import Owner, RWXBits, Perms
 log = logging.getLogger(__name__)
 
 
-def check_call(ssh: SSHClient, command: str, assert_stderr_empty: bool = False, send_stdin: Optional[t.AnyStr] = None, ):
-    stdin, stdout, stderr = ssh.exec_command(command)
+def _auto_shlex(cmd: t.Union[str, t.List[str]]):
+    if isinstance(cmd, list):
+        return " ".join(shlex.quote(a) for a in cmd)
+    else:
+        return cmd
+
+
+def check_call(ssh: SSHClient, command: t.Union[str, t.List[str]], assert_stderr_empty: bool = False, send_stdin: Optional[t.AnyStr] = None, ):
+    stdin, stdout, stderr = ssh.exec_command(_auto_shlex(command))
     if send_stdin is not None:
         stdin.write(send_stdin)
     stdin.close()
@@ -40,8 +47,8 @@ def check_call(ssh: SSHClient, command: str, assert_stderr_empty: bool = False, 
             raise StdErrNotEmptyError(stderr_contents)
 
 
-def check_output(ssh: SSHClient, command: str, send_stdin: Optional[str] = None) -> Tuple[List[str], List[str]]:
-    stdin, stdout, stderr = ssh.exec_command(command)
+def check_output(ssh: SSHClient, command: t.Union[str, t.List[str]], send_stdin: Optional[str] = None) -> Tuple[List[str], List[str]]:
+    stdin, stdout, stderr = ssh.exec_command(_auto_shlex(command))
     if send_stdin is not None:
         stdin.write(send_stdin)
 
@@ -56,12 +63,12 @@ def check_output(ssh: SSHClient, command: str, send_stdin: Optional[str] = None)
 
 
 def check_code(ssh: SSHClient,
-               command: str,
+               command: t.Union[str, t.List[str]],
                assert_stderr_empty: bool = False,
                send_stdin: Optional[str] = None,
                assert_stdout_empty: bool = False
                ) -> bool:
-    stdin, stdout, stderr = ssh.exec_command(command)
+    stdin, stdout, stderr = ssh.exec_command(_auto_shlex(command))
     if send_stdin is not None:
         stdin.write(send_stdin)
     rc = stdout.channel.recv_exit_status()
@@ -82,11 +89,11 @@ def check_code(ssh: SSHClient,
     return True
 
 
-def check_stdout(ssh: SSHClient, command: str) -> t.List[str]:
+def check_stdout(ssh: SSHClient, command: t.Union[str, t.List[str]]) -> t.List[str]:
     return check_output(ssh, command)[0]
 
 
-def check_stderr(ssh: SSHClient, command: str) -> t.List[str]:
+def check_stderr(ssh: SSHClient, command: t.Union[str, t.List[str]]) -> t.List[str]:
     return check_output(ssh, command)[1]
 
 
@@ -269,12 +276,14 @@ def compare_local_and_remote(body: bytes, remote_path: str, ssh: SSHClient, root
 
     return expected == found, expected, found
 
+
 def cat(ssh: SSHClient, path: str, root: bool = False) -> str:
     log.debug(f"cat {path}")
     prefix = 'sudo ' if root else ''
     path = shlex.quote(path)
     cmd = prefix + f"cat {path}"
     return "".join(check_stdout(ssh, cmd))
+
 
 def mkdirp(ssh: SSHClient, path: str, user: str = None):
     log.debug(f"mkdir -p {path}")

@@ -38,3 +38,10 @@ pki:
 files:
   - src: ca:hert-ca
     dest: /tmp/emplaced_ca.crt
+
+pipx:
+  extra_indices:
+    - https://pyrepo.hert/
+  packages:
+    - name: paramiko
+      version: 3.3.1
