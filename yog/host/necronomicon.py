@@ -83,7 +83,7 @@ def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
     else:
         pipx = PipXSection([], [])
 
-    return Necronomicon(ident, tunnels, ds, cs, fs, pki, systemd)
+    return Necronomicon(ident, tunnels, ds, cs, fs, pki, systemd, pipx)
 
 
 class Necronomicon(t.NamedTuple):
@@ -94,6 +94,7 @@ class Necronomicon(t.NamedTuple):
     files: 'FileSection'
     pki: 'PKI'
     systemd: 'SystemdSection'
+    pipx: 'PipXSection'
 
     def inflate(self, host: str, ssh: SSHClient) -> 'Necronomicon':
         inflated_containers = []
@@ -130,7 +131,8 @@ class Necronomicon(t.NamedTuple):
             self.cron,
             self.files,
             self.pki,
-            self.systemd
+            self.systemd,
+            self.pipx,
         )
 
 
@@ -323,13 +325,13 @@ class SystemdSection(t.NamedTuple):
 
 class PipXSection(t.NamedTuple):
     extra_indices: t.List[str]
-    packages: t.List[str]
+    packages: t.List['PipXPackage']
 
     @staticmethod
     def from_parsed(parsed: t.Any) -> 'PipXSection':
         return PipXSection(
             parsed['extra_indices'] if ('extra_indices' in parsed) else [],
-            (PipXPackage.from_parsed(p) for p in parsed['packages']) if 'packages' in parsed else []
+            [PipXPackage.from_parsed(p) for p in parsed['packages']] if 'packages' in parsed else []
         )
 
 
