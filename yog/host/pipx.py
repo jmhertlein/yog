@@ -1,13 +1,27 @@
 import json
 import typing as t
 from paramiko.client import SSHClient
-from yog.host.necronomicon import Necronomicon
+from yog.host.necronomicon import Necronomicon, PipXPackage
 import yog.ssh_utils as ssh_utils
+from urllib.parse import urlparse
 
 
 def apply_pipx_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
-    # sudo PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install hert --pip-args \"--extra-index-url 'https://pyrepo.hert/' --trusted-host pyrepo.hert\"
-    pass
+    # sudo PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install hert
+    installed_versions = list_pkgs(ssh)
+
+    needs_install: t.List[PipXPackage] = list()
+    for pkg in n.pipx.packages:
+        if pkg.name in installed_versions:
+            if pkg.version == installed_versions[pkg.name]:
+                pass
+            else:
+                needs_install.append(pkg)
+        else:
+            needs_install.append(pkg)
+
+    for ipkg in needs_install:
+        install_pkg(ssh, ipkg, n.pipx.extra_indices)
 
 
 def cmd(args: t.List[str]) -> t.List[str]:
@@ -21,8 +35,21 @@ def cmd(args: t.List[str]) -> t.List[str]:
     return cmd_preamble + args
 
 
-def list(ssh: SSHClient):
+def list_pkgs(ssh: SSHClient) -> t.Dict[str, str]:
     lines = ssh_utils.check_stdout(ssh, cmd(["list"]))
+    return get_packages_from_pipx_json("".join(lines))
+
+
+def install_pkg(ssh: SSHClient, pkg: PipXPackage, extra_indices: t.List[str]):
+    extra_index_hosts = [urlparse(u).hostname for u in extra_indices]
+    install_cmd = cmd([
+        "install",
+        f"{pkg.name}=={pkg.version}",
+        "--force"
+        "--pip-args",
+        f"--extra-index-url '{','.join(extra_indices)}' --trusted-host {','.join(extra_index_hosts)}"])
+
+    ssh_utils.check_call(ssh, install_cmd)
 
 
 def get_packages_from_pipx_json(raw_json: str) -> t.Dict[str, str]:
