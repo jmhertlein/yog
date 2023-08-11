@@ -283,6 +283,17 @@ I don't intend for yog-pki to handle huge, complicated PKIs. If you need to do s
 you might want to look at https://smallstep.com/. (You can use Yog's docker and file capabilities to
 deploy a smallstep installation!)
 
+### `pipx` Package Management
+
+```commandline
+pipx:
+  extra_indices:
+    - https://myrepo.local/
+  packages:
+    - name: mypkg
+      version: 1.0
+```
+
 # Footnotes
 
 [1] This is one of those things where I feel like you probably shouldn't manage root certs like this but I have yet to
