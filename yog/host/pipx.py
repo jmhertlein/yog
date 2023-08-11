@@ -1,9 +1,13 @@
 import json
+import logging
 import typing as t
 from paramiko.client import SSHClient
 from yog.host.necronomicon import Necronomicon, PipXPackage
 import yog.ssh_utils as ssh_utils
 from urllib.parse import urlparse
+
+
+log = logging.getLogger(__name__)
 
 
 def apply_pipx_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
@@ -14,11 +18,14 @@ def apply_pipx_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
     for pkg in n.pipx.packages:
         if pkg.name in installed_versions:
             if pkg.version == installed_versions[pkg.name]:
-                pass
+                log.info(f"[{host}][pipx]: OK [{pkg.name}]")
             else:
                 needs_install.append(pkg)
+                log.debug(f"pipx {pkg.name} wanted {pkg.version} but got {installed_versions[pkg.name]}")
+                log.info(f"[{host}][pipx]: stale [{pkg.name}]")
         else:
             needs_install.append(pkg)
+            log.info(f"[{host}][pipx]: stale [{pkg.name}]")
 
     for ipkg in needs_install:
         install_pkg(ssh, ipkg, n.pipx.extra_indices)
@@ -36,7 +43,7 @@ def cmd(args: t.List[str]) -> t.List[str]:
 
 
 def list_pkgs(ssh: SSHClient) -> t.Dict[str, str]:
-    lines = ssh_utils.check_stdout(ssh, cmd(["list"]))
+    lines = ssh_utils.check_stdout(ssh, cmd(["list", "--json"]))
     return get_packages_from_pipx_json("".join(lines))
 
 
@@ -45,7 +52,7 @@ def install_pkg(ssh: SSHClient, pkg: PipXPackage, extra_indices: t.List[str]):
     install_cmd = cmd([
         "install",
         f"{pkg.name}=={pkg.version}",
-        "--force"
+        "--force",
         "--pip-args",
         f"--extra-index-url '{','.join(extra_indices)}' --trusted-host {','.join(extra_index_hosts)}"])
 
@@ -62,7 +69,7 @@ def get_packages_from_pipx_json(raw_json: str) -> t.Dict[str, str]:
     for name, venv in parsed_json["venvs"].items():
         main_pkg = venv["metadata"]["main_package"]
         pkg_name = main_pkg["package"]
-        pkg_version = main_pkg["package_version"]
+        pkg_version = str(main_pkg["package_version"]).strip()
         ret[pkg_name] = pkg_version
 
     return ret

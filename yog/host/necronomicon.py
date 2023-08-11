@@ -341,5 +341,5 @@ class PipXPackage(t.NamedTuple):
 
     @staticmethod
     def from_parsed(parsed: t.Any) -> 'PipXPackage':
-        return PipXPackage(parsed['name'], parsed['version'])
+        return PipXPackage(parsed['name'], str(parsed['version']))
 

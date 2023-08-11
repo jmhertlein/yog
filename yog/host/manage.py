@@ -14,6 +14,7 @@ from yog.host.necronomicon import Necronomicon, File
 import yog.host.pki as pki
 import yog.host.systemd as systemd
 from yog.ssh_utils import check_call, ScopedProxiedRemoteSSHTunnel, compare_local_and_remote
+import yog.host.pipx as pipx
 
 log = logging.getLogger(__name__)
 
@@ -59,16 +60,19 @@ def apply_necronomicon_for_host(host: str, ssh: SSHClient, root_dir):
     necronomicons = [n.inflate(host, ssh) for n in necronomicons]
 
     for n in necronomicons:
+        if n.pki.certs:
+            pki.apply_pki_section(host, n, ssh, root_dir)
         if n.files.files:
             apply_files_section(host, n, ssh, root_dir)
+        if n.pipx.packages:
+            pipx.apply_pipx_section(host, n, ssh, root_dir)
         if n.docker.containers:
             apply_docker_section(host, n)
         if n.cron.crons:
             apply_cron_section(host, n, ssh)
-        if n.pki.certs:
-            pki.apply_pki_section(host, n, ssh, root_dir)
         if n.systemd.units:
             systemd.apply_systemd_section(host, n, ssh)
+
 
 
 def apply_cron_section(host: str, n: Necronomicon, ssh: SSHClient):
