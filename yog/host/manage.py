@@ -4,7 +4,7 @@ from os.path import dirname, join, isdir, isfile, basename
 
 import docker
 from docker.models.containers import Container
-from paramiko import SSHClient, SSHException
+from paramiko import SSHClient, SSHException, SSHConfig
 from paramiko.ssh_exception import NoValidConnectionsError
 from yog.host.pki_model import load_cas
 
@@ -21,10 +21,20 @@ log = logging.getLogger(__name__)
 
 def apply_necronomicon(host: str, root_dir):
     ssh = SSHClient()
+    config = SSHConfig.from_path(os.path.join(os.getenv("HOME"), ".ssh", "config"))
     ssh.load_system_host_keys()
+    host_config = config.lookup(host)
     try:
         log.info(f"[{host}]")
-        ssh.connect(host)
+        if host_config:
+            ssh.connect(
+                hostname=host_config['hostname'],
+                port=int(host_config['port']) if 'port' in host_config else None,
+                username=host_config['user'],
+                key_filename=host_config['identityfile']
+            )
+        else:
+            ssh.connect(host)
         apply_necronomicon_for_host(host, ssh, root_dir)
     except RuntimeError as e:
         log.error(f"{host} error: {e.__class__.__name__}: {str(e)}")
