@@ -313,13 +313,13 @@ class DockerNetworkingModeDef(DockerAttribute):
         return "network_mode"
 
     def from_necronomicon(self, dc: DockerContainer) -> 'DockerAttributeInstance':
-        return SimpleDockerAttributeInstance(dc.network_mode)
+        return DockerNetworkingModeDefInstance(dc.network_mode)
 
     def from_container(self, c: Container) -> 'DockerAttributeInstance':
         found = c.attrs['HostConfig']['NetworkMode']
         # if found == "default":
         #     found = "bridge"
-        return SimpleDockerAttributeInstance(found)
+        return DockerNetworkingModeDefInstance(found)
 
 
 class DockerNetworkingModeDefInstance(DockerAttributeInstance):
@@ -333,7 +333,10 @@ class DockerNetworkingModeDefInstance(DockerAttributeInstance):
             return self.network_mode_name
 
     def is_satisfied_by(self, other: 'DockerNetworkingModeDefInstance'):
-        return self.network_mode_name == other.network_mode_name
+        if self.network_mode_name == "default":
+            return other.network_mode_name in ["default", "bridge"]
+        else:
+            return self.network_mode_name == other.network_mode_name
 
     def __repr__(self) -> str:
         return repr(self.network_mode_name)
