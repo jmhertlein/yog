@@ -29,7 +29,7 @@ def apply_necronomicon(host: str, root_dir):
         if host_config:
             ssh.connect(
                 hostname=host_config['hostname'],
-                port=int(host_config['port']) if 'port' in host_config else None,
+                port=int(host_config['port']) if 'port' in host_config else 22,
                 username=host_config['user'],
                 key_filename=host_config['identityfile']
             )
