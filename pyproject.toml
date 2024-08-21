@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "yog"
-version = "2.2.9"
+version = "2.2.10"
 description = "The Gate and Key"
 authors = ["Josh Hertlein <jmhertlein@gmail.com>"]
 license = "AGPLv3"
