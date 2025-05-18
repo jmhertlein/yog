@@ -121,8 +121,8 @@ def _gen_ca(ca: CAEntry):
     builder = builder.issuer_name(x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, ca.ident),
     ]))
-    builder = builder.not_valid_before(datetime.datetime.utcnow())
-    builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=parse_validity_period(ca.validity_period)))
+    builder = builder.not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+    builder = builder.not_valid_after(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(days=parse_validity_period(ca.validity_period)))
     serial_no = uuid.uuid4()
     builder = builder.serial_number(int(serial_no))
     builder = builder.public_key(public_key)
@@ -180,8 +180,8 @@ def _gen_cert(ce: CertEntry, ca_data: KeyPairData, ca: CAEntry):
     builder = builder.issuer_name(x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, ca.ident),
     ]))
-    builder = builder.not_valid_before(datetime.datetime.utcnow())
-    builder = builder.not_valid_after(datetime.datetime.utcnow()+datetime.timedelta(days=parse_validity_period(ce.validity_period)))
+    builder = builder.not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+    builder = builder.not_valid_after(datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(days=parse_validity_period(ce.validity_period)))
     serial_no = uuid.uuid4()
     builder = builder.serial_number(int(serial_no))
     builder = builder.public_key(public_key)
@@ -287,8 +287,8 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
         try:
             cur_trust = KeyPairData.load(ssh, ce.storage)
             cert: Certificate = cur_trust.crt()
-            expiry = cert.not_valid_after
-            if (expiry - datetime.timedelta(days=parse_validity_period(ce.refresh_at_period))) <= datetime.datetime.utcnow():
+            expiry = cert.not_valid_after_utc
+            if (expiry - datetime.timedelta(days=parse_validity_period(ce.refresh_at_period))) <= datetime.datetime.now(datetime.timezone.utc):
                 generate = True
                 log.debug("Expiry too soon")
             elif set(ce.names) != set(cur_trust.cert_names()):
@@ -297,7 +297,7 @@ def apply_pki_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
             elif cur_trust.issuer_cn() != ce.authority:
                 generate = True
                 log.debug("Issuer CN != authority ident")
-            elif expiry > (datetime.datetime.utcnow() + datetime.timedelta(days=parse_validity_period(ce.validity_period))):
+            elif expiry > (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=parse_validity_period(ce.validity_period))):
                 generate = True
                 log.debug("expiry too far out")
             elif cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value != ce.names[0]:
