@@ -173,7 +173,8 @@ def _gen_cert(ce: CertEntry, ca_data: KeyPairData, ca: CAEntry):
     )
 
     public_key = private_key.public_key()
-    builder = x509.CertificateBuilder()
+    
+    builder: x509.CertificateBuilder = x509.CertificateBuilder()
     builder = builder.subject_name(x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, ce.names[0]),
     ]))
