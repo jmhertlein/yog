@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import typing as t
 import re
 from argparse import ArgumentParser
@@ -98,19 +99,9 @@ def push(target: str, check_unclean_work_tree: bool):
 
         log.info("Pushing...")
         if push_target.is_private_registry():
-            log_lines = client.images.push(tag).splitlines()
+            subprocess.check_call(["docker", "push", tag])
         else:
-            log_lines = []
-            for extra_tag in push_target.tags:
-                print(extra_tag)
-                log_lines.extend(client.images.push(push_target.repository, extra_tag).splitlines())
-
-        for line_raw in log_lines:
-            if "sha256" in line_raw:
-                log.info(line_raw)
-            line = json.loads(line_raw)
-            if "error" in line:
-                raise RuntimeError(str(line))
+            subprocess.check_call(["docker", "push", tag, "--all-tags"])
         log.info("Done.")
 
     finally:
