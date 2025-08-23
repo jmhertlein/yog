@@ -16,7 +16,7 @@ yog-pki = "yog.command:ca_main"
 python = "^3.13"
 paramiko = "^3.5.1"
 PyYAML = "^6.0"
-docker = "^6.1.3"
+docker = "^7.1.0"
 requests = "2.31.0"
 
 [tool.poetry.dev-dependencies]
