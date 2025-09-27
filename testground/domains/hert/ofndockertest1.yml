@@ -24,12 +24,15 @@ docker:
       WG_DEFAULT_DNS: 192.168.1.103, 192.168.1.189
       WG_DEFAULT_ADDRESS: 192.168.100.x
 
+compose:
+    path: compose.yml
+
 pki:
   certs:
     - authority: hert-ca
       storage: /srv/yog/cert/hert/
-      validity_years: 5
-      refresh_at: 1
+      validity_period: 5y
+      refresh_at_period: 2w
       names:
         - something.hert
         - somethingelse.hert

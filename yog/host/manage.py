@@ -6,15 +6,16 @@ import docker
 from docker.models.containers import Container
 from paramiko import SSHClient, SSHException, SSHConfig
 from paramiko.ssh_exception import NoValidConnectionsError
-from yog.host.pki_model import load_cas
 
-from yog.host import necronomicon
-from yog.host.docker_attrs import build_run_kwargs_dict, diff_container
-from yog.host.necronomicon import Necronomicon, File
+import yog.host.pipx as pipx
 import yog.host.pki as pki
 import yog.host.systemd as systemd
+from yog.host import necronomicon
+from yog.host.compose import apply_compose_section
+from yog.host.docker_attrs import build_run_kwargs_dict, diff_container
+from yog.host.necronomicon import Necronomicon
+from yog.host.utils import load_file_content
 from yog.ssh_utils import check_call, ScopedProxiedRemoteSSHTunnel, compare_local_and_remote
-import yog.host.pipx as pipx
 
 log = logging.getLogger(__name__)
 
@@ -82,6 +83,9 @@ def apply_necronomicon_for_host(host: str, ssh: SSHClient, root_dir):
             apply_cron_section(host, n, ssh)
         if n.systemd.units:
             systemd.apply_systemd_section(host, n, ssh)
+        if n.compose:
+            apply_compose_section(host, n, root_dir)
+
 
 
 
@@ -163,33 +167,12 @@ def apply_docker_section(host: str, n: Necronomicon):
                 log.warning("Error while disconnecting tunnel", exc_info=e)
 
 
-def _load_file_content(f: File, root_dir: str) -> bytes:
-    if f.src.startswith("ca:"):
-        ca_ident = f.src[len("ca:"):]
-        matches = [ca for ca in load_cas(os.path.join(root_dir, "cas.yml")) if ca_ident == ca.ident]
-        if not matches:
-            raise ValueError(f"No such CA with ident {ca_ident}")
-        ca = matches[0]
-        ssh = SSHClient()
-        ssh.load_system_host_keys()
-        ssh.connect(ca.storage.host)
-        try:
-            trust = pki.KeyPairData.load(ssh, ca.storage.path)
-        finally:
-            ssh.close()
-
-        return trust.raw_crt().body.encode("utf-8")
-
-
-    with open(join(root_dir, "files", f.src)) as fin:
-        return fin.read().encode("utf-8")
-
-
 def apply_files_section(host: str, n: Necronomicon, ssh: SSHClient, root_dir):
     log.debug(f"Files: {n.ident}")
     hupcmds = set()
     for f in n.files.files:
-        content = _load_file_content(f, root_dir)
+        content = (
+            load_file_content(f, root_dir))
         ok, _, _ = compare_local_and_remote(content, f.dest, ssh, f.root)
         if ok:
             log.info(f"[{host}][files]: OK [{f.src}]")

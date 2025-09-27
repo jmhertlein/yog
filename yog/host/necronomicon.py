@@ -50,6 +50,17 @@ def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
     else:
         ds = DockerSection([])
 
+    if 'compose' in parsed_necronomicon:
+        raw = parsed_necronomicon['compose']
+        if 'path' in raw:
+            dcs = DockerComposeSection(
+                raw['path']
+            )
+        else:
+            dcs = None
+    else:
+        dcs = None
+
     if 'cron' in parsed_necronomicon:
         cs = CronSection([CronJob(e['expr'], e['command'], e['user'] if 'user' in e else 'root') for e in parsed_necronomicon['cron']])
     else:
@@ -83,13 +94,14 @@ def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
     else:
         pipx = PipXSection([], [])
 
-    return Necronomicon(ident, tunnels, ds, cs, fs, pki, systemd, pipx)
+    return Necronomicon(ident, tunnels, ds, dcs, cs, fs, pki, systemd, pipx)
 
 
 class Necronomicon(t.NamedTuple):
     ident: str
     tunnels: 'NeededTunnelsSection'
     docker: 'DockerSection'
+    compose: 'DockerComposeSection'
     cron: 'CronSection'
     files: 'FileSection'
     pki: 'PKI'
@@ -128,6 +140,7 @@ class Necronomicon(t.NamedTuple):
             self.ident,
             self.tunnels,
             DockerSection(inflated_containers),
+            self.compose,
             self.cron,
             self.files,
             self.pki,
@@ -343,3 +356,5 @@ class PipXPackage(t.NamedTuple):
     def from_parsed(parsed: t.Any) -> 'PipXPackage':
         return PipXPackage(parsed['name'], str(parsed['version']))
 
+class DockerComposeSection(t.NamedTuple):
+    compose_file_path: str
