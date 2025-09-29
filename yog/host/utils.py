@@ -25,5 +25,9 @@ def load_file_content(f: File, root_dir: str) -> bytes:
 
         return trust.raw_crt().body.encode("utf-8")
 
-    with open(join(root_dir, "files", f.src)) as fin:
+    with open(get_path_for_file(f.src, root_dir)) as fin:
         return fin.read().encode("utf-8")
+
+
+def get_path_for_file(resource_path, root_dir):
+    return os.path.join(root_dir, "files", resource_path)

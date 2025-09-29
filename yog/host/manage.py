@@ -1,5 +1,6 @@
 import logging
 import os.path
+import socket
 from os.path import dirname, join, isdir, isfile, basename
 
 import docker
