@@ -32,7 +32,7 @@ pki:
     - authority: hert-ca
       storage: /srv/yog/cert/hert/
       validity_period: 5y
-      refresh_at_period: 2w
+      refresh_at_period: 4y
       names:
         - something.hert
         - somethingelse.hert
