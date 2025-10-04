@@ -52,12 +52,8 @@ def load(ident: str, parsed_necronomicon) -> 'Necronomicon':
 
     if 'compose' in parsed_necronomicon:
         raw = parsed_necronomicon['compose']
-        if 'path' in raw:
-            dcs = DockerComposeSection(
-                raw['path']
-            )
-        else:
-            dcs = None
+        groups = {name: DockerComposeGroup(group["path"], group["env"] if 'env' in group else None) for name, group in raw.items()}
+        dcs = DockerComposeSection(groups)
     else:
         dcs = None
 
@@ -356,5 +352,11 @@ class PipXPackage(t.NamedTuple):
     def from_parsed(parsed: t.Any) -> 'PipXPackage':
         return PipXPackage(parsed['name'], str(parsed['version']))
 
+
+class DockerComposeGroup(t.NamedTuple):
+    compose_path: str
+    env_path: t.Optional[str]
+
+
 class DockerComposeSection(t.NamedTuple):
-    compose_file_path: str
+    groups: t.Dict[str, DockerComposeGroup]

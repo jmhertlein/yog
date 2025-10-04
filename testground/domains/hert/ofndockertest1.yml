@@ -25,7 +25,8 @@ docker:
       WG_DEFAULT_ADDRESS: 192.168.100.x
 
 compose:
-    path: compose.yml
+    redis:
+      path: compose.yml
 
 pki:
   certs:

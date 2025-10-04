@@ -12,10 +12,19 @@ def apply_compose_section(host: str, n: Necronomicon, root_dir: str):
     log.info(f"[{host}][compose] up")
     env = os.environ.copy()
     env['DOCKER_HOST'] = f"ssh://{host}"
-    subprocess.check_call([
-        "docker",
-        "compose",
-        "-f", get_path_for_file(n.compose.compose_file_path, root_dir),
-        "up",
-        "--detach",
-    ], env=env)
+
+    for name, group in n.compose.groups.items():
+        log.info(f"[{host}][compose][{name}] up")
+        cmd = [
+            "docker",
+            "compose",
+            "-f",
+            get_path_for_file(group.compose_path, root_dir)
+        ]
+        if group.env_path:
+            cmd.append("--env-file")
+            cmd.append(get_path_for_file(group.env_path, root_dir))
+
+        cmd.extend(["up", "--detach"])
+
+        subprocess.check_call(cmd, env=env)
