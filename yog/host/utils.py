@@ -31,3 +31,7 @@ def load_file_content(f: File, root_dir: str) -> bytes:
 
 def get_path_for_file(resource_path, root_dir):
     return os.path.join(root_dir, "files", resource_path)
+
+
+def get_resource_root(root_dir):
+    return os.path.join(root_dir, "files")
