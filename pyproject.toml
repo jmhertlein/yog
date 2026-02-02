@@ -3,7 +3,7 @@ name = "yog"
 version = "2.5.1"
 description = "The Gate and Key"
 authors = [{ name = "Josh Hertlein", email = "jmhertlein@gmail.com" }]
-requires-python = "~=3.13.0"
+requires-python = ">=3.13.0"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 dependencies = [
