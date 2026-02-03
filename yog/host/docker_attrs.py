@@ -218,7 +218,10 @@ class DockerCommandDefInstance(DockerAttributeInstance):
         if self.command:
             return self.command == actual.command
         else:
-            return actual.image.attrs['Config']['Cmd'] == actual.command
+            if 'Cmd' in actual.image.attrs['Config']:
+                return actual.image.attrs['Config']['Cmd'] == actual.command
+            else:
+                return actual.command == "" or actual.command == [] or actual.command is None
 
 
 class DockerCommandDef(DockerAttribute):
